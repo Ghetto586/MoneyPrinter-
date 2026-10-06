@@ -1,12 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <color name="black">#0A0C12</color>
+    <color name="black">#070A0F</color>
     <color name="white">#FFFFFF</color>
+
+    <!-- MoneyPrinter Green -->
     <color name="green">#00E676</color>
-    <color name="red">#FF3B30</color>
-    <color name="gold">#FFD54F</color>
-    <color name="dark_panel">#151923</color>
-    <color name="gray_text">#A7ADB8</color>
+    <color name="green_dark">#00B85C</color>
+
+    <!-- Trading Red -->
+    <color name="red">#FF5252</color>
+
+    <!-- Gold -->
+    <color name="gold">#FFC107</color>
+
+    <!-- Modern Dark UI -->
+    <color name="dark_panel">#11161E</color>
+    <color name="dark_panel_2">#161C26</color>
+    <color name="dark_panel_3">#1D2530</color>
+
+    <!-- Text -->
+    <color name="gray_text">#919AA8</color>
+    <color name="light_text">#DDE3EA</color>
+
+    <!-- Trading states -->
+    <color name="buy">#00E676</color>
+    <color name="sell">#FF5252</color>
+    <color name="wait">#FFC107</color>
 
 </resources>
