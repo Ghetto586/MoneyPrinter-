@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.Gravity;
-import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -13,321 +12,380 @@ import android.widget.TextView;
 
 public class MainActivity extends Activity {
 
-    private TextView eaStatus;
-    private TextView balance;
+    private final int BG = Color.rgb(7, 10, 15);
+    private final int CARD = Color.rgb(17, 22, 30);
+    private final int CARD2 = Color.rgb(22, 28, 38);
+    private final int WHITE = Color.WHITE;
+    private final int MUTED = Color.rgb(145, 154, 168);
+    private final int GREEN = Color.rgb(0, 230, 118);
+    private final int RED = Color.rgb(255, 82, 82);
+    private final int GOLD = Color.rgb(255, 193, 7);
+
+    private TextView status;
     private TextView equity;
-    private TextView profit;
-    private TextView positions;
+    private TextView dailyPL;
     private TextView scanner;
-
-    private boolean eaRunning = false;
-
-    private int white = Color.WHITE;
-    private int gray = Color.rgb(160, 166, 178);
-    private int green = Color.rgb(0, 230, 118);
-    private int red = Color.rgb(255, 59, 48);
-    private int gold = Color.rgb(255, 213, 79);
-    private int background = Color.rgb(8, 11, 17);
-    private int panel = Color.rgb(20, 24, 34);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        getWindow().setStatusBarColor(background);
-        getWindow().setNavigationBarColor(background);
+        getWindow().setStatusBarColor(BG);
+        getWindow().setNavigationBarColor(BG);
 
-        buildDashboard();
+        createDashboard();
     }
 
-    private TextView text(String value, float size, int color) {
+    private TextView label(String value, float size, int color) {
 
-        TextView t = new TextView(this);
+        TextView view = new TextView(this);
 
-        t.setText(value);
-        t.setTextSize(size);
-        t.setTextColor(color);
-        t.setPadding(0, 5, 0, 5);
+        view.setText(value);
+        view.setTextSize(size);
+        view.setTextColor(color);
+        view.setPadding(0, 4, 0, 4);
 
-        return t;
+        return view;
     }
 
-    private TextView title(String value) {
+    private TextView heading(String value) {
 
-        TextView t = text(value, 18, white);
+        TextView view = label(value, 17, WHITE);
 
-        t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
-        return t;
+        return view;
     }
 
-    private LinearLayout panel() {
+    private LinearLayout card() {
 
-        LinearLayout p = new LinearLayout(this);
+        LinearLayout layout = new LinearLayout(this);
 
-        p.setOrientation(LinearLayout.VERTICAL);
-        p.setPadding(20, 18, 20, 18);
-        p.setBackgroundColor(panel);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(20, 18, 20, 18);
+        layout.setBackgroundColor(CARD);
 
-        LinearLayout.LayoutParams lp =
+        LinearLayout.LayoutParams params =
                 new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
                 );
 
-        lp.setMargins(0, 10, 0, 10);
+        params.setMargins(0, 7, 0, 7);
 
-        p.setLayoutParams(lp);
+        layout.setLayoutParams(params);
 
-        return p;
+        return layout;
     }
 
-    private Button button(String name) {
+    private Button actionButton(String text) {
 
-        Button b = new Button(this);
+        Button button = new Button(this);
 
-        b.setText(name);
-        b.setTextSize(15);
-        b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        button.setText(text);
+        button.setTextSize(14);
+        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
-        return b;
+        return button;
     }
 
-    private void buildDashboard() {
+    private void createDashboard() {
 
         ScrollView scroll = new ScrollView(this);
 
-        scroll.setBackgroundColor(background);
+        scroll.setBackgroundColor(BG);
 
-        LinearLayout main = new LinearLayout(this);
+        LinearLayout root = new LinearLayout(this);
 
-        main.setOrientation(LinearLayout.VERTICAL);
-        main.setPadding(20, 45, 20, 25);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(18, 32, 18, 20);
 
-        scroll.addView(main);
+        scroll.addView(root);
 
         // HEADER
-        TextView logo = text("MONEYPRINTER", 27, white);
+
+        LinearLayout header = new LinearLayout(this);
+
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView logo = label("MONEY", 23, WHITE);
 
         logo.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        logo.setGravity(Gravity.CENTER);
 
-        main.addView(logo);
+        TextView printer = label("PRINTER", 23, GREEN);
 
-        TextView subtitle =
-                text("AUTOSCALP • MT4 / MT5", 13, gray);
+        printer.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
-        subtitle.setGravity(Gravity.CENTER);
+        header.addView(logo);
+        header.addView(printer);
 
-        main.addView(subtitle);
+        TextView settings = label("   ⚙", 24, MUTED);
 
-        eaStatus = text("● EA OFFLINE", 17, red);
-
-        eaStatus.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        eaStatus.setGravity(Gravity.CENTER);
-        eaStatus.setPadding(0, 18, 0, 15);
-
-        main.addView(eaStatus);
-
-        // ACCOUNT
-        LinearLayout accountPanel = panel();
-
-        accountPanel.addView(title("ACCOUNT"));
-
-        accountPanel.addView(
-                text("MT5 ACCOUNT", 13, gray)
+        header.addView(
+                settings,
+                new LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1
+                )
         );
 
-        TextView accountNumber =
-                text("Not Connected", 16, white);
+        settings.setGravity(Gravity.RIGHT);
 
-        accountPanel.addView(accountNumber);
+        root.addView(header);
 
-        main.addView(accountPanel);
+        TextView subtitle =
+                label("AI AUTOSCALP  •  MT5", 12, MUTED);
 
-        // MONEY
-        LinearLayout moneyPanel = panel();
+        root.addView(subtitle);
 
-        moneyPanel.addView(title("ACCOUNT SUMMARY"));
+        // STATUS
 
-        balance =
-                text("Balance        R0.00", 16, white);
+        status =
+                label("●  EA OFFLINE", 15, RED);
+
+        status.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        status.setPadding(0, 16, 0, 12);
+
+        root.addView(status);
+
+        // EQUITY CARD
+
+        LinearLayout equityCard = card();
+
+        equityCard.addView(
+                label("EQUITY", 12, MUTED)
+        );
 
         equity =
-                text("Equity         R0.00", 16, white);
+                label("R10,000.00", 30, WHITE);
 
-        profit =
-                text("Daily P/L      R0.00", 16, white);
+        equity.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
-        moneyPanel.addView(balance);
-        moneyPanel.addView(equity);
-        moneyPanel.addView(profit);
+        equityCard.addView(equity);
 
-        main.addView(moneyPanel);
+        dailyPL =
+                label("+R0.00     +0.00%", 14, GREEN);
 
-        // BOT CONTROL
-        LinearLayout botPanel = panel();
+        equityCard.addView(dailyPL);
 
-        botPanel.addView(title("BOT CONTROL"));
+        TextView chart =
+                label(
+                        "\n   ╱╲      ╱╲\n" +
+                        " ╱    ╲  ╱    ╲___\n" +
+                        "╱       ╲╱         ╲\n",
+                        17,
+                        GREEN
+                );
+
+        equityCard.addView(chart);
+
+        root.addView(equityCard);
+
+        // ACCOUNT SUMMARY
+
+        LinearLayout account = card();
+
+        account.addView(heading("ACCOUNT"));
+
+        LinearLayout row = new LinearLayout(this);
+
+        row.setOrientation(LinearLayout.HORIZONTAL);
+
+        TextView balance =
+                label("BALANCE\nR10,000.00", 14, WHITE);
+
+        TextView margin =
+                label("FREE MARGIN\nR9,850.00", 14, WHITE);
+
+        row.addView(
+                balance,
+                new LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1
+                )
+        );
+
+        row.addView(
+                margin,
+                new LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1
+                )
+        );
+
+        account.addView(row);
+
+        root.addView(account);
+
+        // EA CONTROL
+
+        LinearLayout bot = card();
+
+        bot.addView(heading("AUTOSCALP"));
 
         TextView mode =
-                text("MODE: SCALP", 17, gold);
+                label("● READY        SCALP", 15, GREEN);
 
         mode.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
-        botPanel.addView(mode);
+        bot.addView(mode);
 
-        botPanel.addView(
-                text("Risk: 1.00%     Lot: AUTO", 15, white)
+        bot.addView(
+                label(
+                        "Risk  1.00%        Lot  AUTO        Max  8",
+                        13,
+                        MUTED
+                )
         );
 
-        Button start = button("START BOT");
+        LinearLayout controls = new LinearLayout(this);
 
-        Button stop = button("STOP BOT");
+        controls.setOrientation(LinearLayout.HORIZONTAL);
 
-        botPanel.addView(start);
-        botPanel.addView(stop);
+        Button start = actionButton("START EA");
+        Button stop = actionButton("STOP EA");
 
-        main.addView(botPanel);
+        controls.addView(
+                start,
+                new LinearLayout.LayoutParams(
+                        0,
+                        60,
+                        1
+                )
+        );
+
+        controls.addView(
+                stop,
+                new LinearLayout.LayoutParams(
+                        0,
+                        60,
+                        1
+                )
+        );
+
+        bot.addView(controls);
+
+        root.addView(bot);
 
         // SCANNER
-        LinearLayout scannerPanel = panel();
 
-        scannerPanel.addView(title("MARKET SCANNER"));
+        LinearLayout scanCard = card();
+
+        scanCard.addView(heading("MARKET SCANNER"));
 
         scanner =
-                text(
-                        "NASDAQ       WAIT\n" +
-                        "US30         WAIT\n" +
-                        "GOLD         WAIT\n" +
-                        "USDJPY       WAIT\n" +
-                        "GBPUSD       WAIT\n" +
-                        "SYNTHETIC    WAIT",
-                        15,
-                        white
+                label(
+                        "NASDAQ        WAIT     --\n" +
+                        "US30          WAIT     --\n" +
+                        "GOLD          WAIT     --\n" +
+                        "USDJPY        WAIT     --\n" +
+                        "GBPUSD        WAIT     --\n" +
+                        "SYNTHETIC     WAIT     --",
+                        14,
+                        WHITE
                 );
 
-        scannerPanel.addView(scanner);
+        scanner.setTypeface(Typeface.MONOSPACE);
 
-        main.addView(scannerPanel);
+        scanCard.addView(scanner);
 
-        // POSITIONS
-        LinearLayout positionPanel = panel();
+        root.addView(scanCard);
 
-        positionPanel.addView(title("OPEN POSITIONS"));
+        // POSITION CARD
 
-        positions =
-                text(
-                        "Open Trades: 0\n" +
-                        "Floating P/L: R0.00",
-                        16,
-                        white
-                );
+        LinearLayout positions = card();
 
-        positionPanel.addView(positions);
+        positions.addView(heading("POSITIONS"));
 
-        Button closeAll = button("CLOSE ALL");
+        positions.addView(
+                label(
+                        "Open Trades       0\n" +
+                        "Floating P/L      R0.00",
+                        14,
+                        WHITE
+                )
+        );
 
-        positionPanel.addView(closeAll);
+        Button close =
+                actionButton("CLOSE ALL");
 
-        main.addView(positionPanel);
+        positions.addView(close);
 
-        // NAVIGATION
-        LinearLayout nav = new LinearLayout(this);
+        root.addView(positions);
 
-        nav.setOrientation(LinearLayout.HORIZONTAL);
-        nav.setGravity(Gravity.CENTER);
+        // BOTTOM NAV
 
-        Button dashboard = button("DASHBOARD");
-        Button trades = button("TRADES");
-        Button history = button("HISTORY");
+        LinearLayout navigation = new LinearLayout(this);
 
-        nav.addView(dashboard,
-                new LinearLayout.LayoutParams(0, 60, 1));
+        navigation.setOrientation(LinearLayout.HORIZONTAL);
+        navigation.setGravity(Gravity.CENTER);
 
-        nav.addView(trades,
-                new LinearLayout.LayoutParams(0, 60, 1));
+        String[] tabs = {
+                "HOME",
+                "MARKETS",
+                "TRADE",
+                "HISTORY"
+        };
 
-        nav.addView(history,
-                new LinearLayout.LayoutParams(0, 60, 1));
+        for (String tab : tabs) {
 
-        main.addView(nav);
+            Button nav = actionButton(tab);
 
-        // START
+            navigation.addView(
+                    nav,
+                    new LinearLayout.LayoutParams(
+                            0,
+                            60,
+                            1
+                    )
+            );
+        }
+
+        root.addView(navigation);
+
+        // START EA
+
         start.setOnClickListener(v -> {
 
-            eaRunning = true;
-
-            eaStatus.setText("● EA ONLINE");
-            eaStatus.setTextColor(green);
+            status.setText("●  EA ONLINE");
+            status.setTextColor(GREEN);
 
             scanner.setText(
-                    "NASDAQ       BUY\n" +
-                    "US30         WAIT\n" +
-                    "GOLD         BUY\n" +
-                    "USDJPY       WAIT\n" +
-                    "GBPUSD       SELL\n" +
-                    "SYNTHETIC    WAIT"
+                    "NASDAQ        BUY      87%\n" +
+                    "US30          WAIT     54%\n" +
+                    "GOLD          BUY      91%\n" +
+                    "USDJPY        SELL     78%\n" +
+                    "GBPUSD        WAIT     48%\n" +
+                    "SYNTHETIC     WAIT     52%"
             );
         });
 
-        // STOP
+        // STOP EA
+
         stop.setOnClickListener(v -> {
 
-            eaRunning = false;
-
-            eaStatus.setText("● EA OFFLINE");
-            eaStatus.setTextColor(red);
+            status.setText("●  EA OFFLINE");
+            status.setTextColor(RED);
 
             scanner.setText(
-                    "NASDAQ       WAIT\n" +
-                    "US30         WAIT\n" +
-                    "GOLD         WAIT\n" +
-                    "USDJPY       WAIT\n" +
-                    "GBPUSD       WAIT\n" +
-                    "SYNTHETIC    WAIT"
+                    "NASDAQ        WAIT     --\n" +
+                    "US30          WAIT     --\n" +
+                    "GOLD          WAIT     --\n" +
+                    "USDJPY        WAIT     --\n" +
+                    "GBPUSD        WAIT     --\n" +
+                    "SYNTHETIC     WAIT     --"
             );
         });
 
-        // CLOSE ALL
-        closeAll.setOnClickListener(v -> {
+        close.setOnClickListener(v -> {
 
-            positions.setText(
-                    "Open Trades: 0\n" +
-                    "Floating P/L: R0.00\n\n" +
-                    "ALL POSITIONS CLOSED"
-            );
-        });
-
-        // TRADES
-        trades.setOnClickListener(v -> {
-
-            positions.setText(
-                    "OPEN POSITIONS\n\n" +
-                    "No live positions\n\n" +
-                    "BUY: 0\n" +
-                    "SELL: 0"
-            );
-        });
-
-        // HISTORY
-        history.setOnClickListener(v -> {
-
-            positions.setText(
-                    "TRADE HISTORY\n\n" +
-                    "No completed trades"
-            );
-        });
-
-        // DASHBOARD
-        dashboard.setOnClickListener(v -> {
-
-            positions.setText(
-                    "Open Trades: 0\n" +
-                    "Floating P/L: R0.00"
-            );
+            dailyPL.setText("+R0.00     +0.00%");
         });
 
         setContentView(scroll);
     }
-}
+            }
