@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">MoneyPrinter</string>
+    <string name="app_subtitle">AI TRADING • AUTOSCALP</string>
+
+    <string name="ea_online">● EA ONLINE</string>
+    <string name="ea_offline">● EA OFFLINE</string>
+
+    <string name="scalp_mode">SCALP</string>
+    <string name="swing_mode">SWING</string>
+
+    <string name="start_ea">START EA</string>
+    <string name="stop_ea">STOP EA</string>
+    <string name="close_all">CLOSE ALL</string>
+
+    <string name="scanner">SCANNER</string>
+
+    <string name="nasdaq">NASDAQ</string>
+    <string name="us30">US30</string>
+    <string name="gold">GOLD</string>
+    <string name="usdjpy">USDJPY</string>
+    <string name="gbpusd">GBPUSD</string>
+    <string name="synthetic">SYNTHETIC</string>
+
+    <string name="balance">Balance</string>
+    <string name="equity">Equity</string>
+    <string name="daily_pl">Daily P/L</string>
+    <string name="open_trades">Open Trades</string>
+
+</resources>
