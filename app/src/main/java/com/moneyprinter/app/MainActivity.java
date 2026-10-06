@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -12,10 +13,11 @@ import android.widget.TextView;
 
 public class MainActivity extends Activity {
 
+    // MoneyPrinter modern colors
     private final int BG = Color.rgb(7, 10, 15);
     private final int CARD = Color.rgb(17, 22, 30);
-    private final int CARD2 = Color.rgb(22, 28, 38);
-    private final int WHITE = Color.WHITE;
+    private final int CARD2 = Color.rgb(29, 37, 48);
+    private final int WHITE = Color.rgb(255, 255, 255);
     private final int MUTED = Color.rgb(145, 154, 168);
     private final int GREEN = Color.rgb(0, 230, 118);
     private final int RED = Color.rgb(255, 82, 82);
@@ -37,30 +39,22 @@ public class MainActivity extends Activity {
     }
 
     private TextView label(String value, float size, int color) {
-
         TextView view = new TextView(this);
-
         view.setText(value);
         view.setTextSize(size);
         view.setTextColor(color);
         view.setPadding(0, 4, 0, 4);
-
         return view;
     }
 
     private TextView heading(String value) {
-
         TextView view = label(value, 17, WHITE);
-
         view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-
         return view;
     }
 
     private LinearLayout card() {
-
         LinearLayout layout = new LinearLayout(this);
-
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(20, 18, 20, 18);
         layout.setBackgroundColor(CARD);
@@ -72,55 +66,47 @@ public class MainActivity extends Activity {
                 );
 
         params.setMargins(0, 7, 0, 7);
-
         layout.setLayoutParams(params);
 
         return layout;
     }
 
     private Button actionButton(String text) {
-
         Button button = new Button(this);
-
         button.setText(text);
-        button.setTextSize(14);
+        button.setTextSize(13);
+        button.setTextColor(WHITE);
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-
+        button.setAllCaps(false);
         return button;
     }
 
     private void createDashboard() {
 
         ScrollView scroll = new ScrollView(this);
-
         scroll.setBackgroundColor(BG);
 
         LinearLayout root = new LinearLayout(this);
-
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(18, 32, 18, 20);
+        root.setPadding(18, 28, 18, 20);
 
         scroll.addView(root);
 
         // HEADER
-
         LinearLayout header = new LinearLayout(this);
-
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
 
         TextView logo = label("MONEY", 23, WHITE);
-
         logo.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
         TextView printer = label("PRINTER", 23, GREEN);
-
         printer.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
         header.addView(logo);
         header.addView(printer);
 
-        TextView settings = label("   ⚙", 24, MUTED);
+        TextView settings = label("⚙", 24, MUTED);
 
         header.addView(
                 settings,
@@ -141,26 +127,20 @@ public class MainActivity extends Activity {
         root.addView(subtitle);
 
         // STATUS
-
-        status =
-                label("●  EA OFFLINE", 15, RED);
-
+        status = label("●  EA OFFLINE", 15, RED);
         status.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         status.setPadding(0, 16, 0, 12);
 
         root.addView(status);
 
         // EQUITY CARD
-
         LinearLayout equityCard = card();
 
         equityCard.addView(
                 label("EQUITY", 12, MUTED)
         );
 
-        equity =
-                label("R10,000.00", 30, WHITE);
-
+        equity = label("R10,000.00", 30, WHITE);
         equity.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
         equityCard.addView(equity);
@@ -183,21 +163,29 @@ public class MainActivity extends Activity {
 
         root.addView(equityCard);
 
-        // ACCOUNT SUMMARY
-
+        // ACCOUNT
         LinearLayout account = card();
 
-        account.addView(heading("ACCOUNT"));
+        account.addView(
+                heading("ACCOUNT")
+        );
 
         LinearLayout row = new LinearLayout(this);
-
         row.setOrientation(LinearLayout.HORIZONTAL);
 
         TextView balance =
-                label("BALANCE\nR10,000.00", 14, WHITE);
+                label(
+                        "BALANCE\nR10,000.00",
+                        14,
+                        WHITE
+                );
 
         TextView margin =
-                label("FREE MARGIN\nR9,850.00", 14, WHITE);
+                label(
+                        "FREE MARGIN\nR9,850.00",
+                        14,
+                        WHITE
+                );
 
         row.addView(
                 balance,
@@ -221,16 +209,24 @@ public class MainActivity extends Activity {
 
         root.addView(account);
 
-        // EA CONTROL
-
+        // AUTOSCALP
         LinearLayout bot = card();
 
-        bot.addView(heading("AUTOSCALP"));
+        bot.addView(
+                heading("AUTOSCALP")
+        );
 
         TextView mode =
-                label("● READY        SCALP", 15, GREEN);
+                label(
+                        "● READY        SCALP",
+                        15,
+                        GREEN
+                );
 
-        mode.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        mode.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
 
         bot.addView(mode);
 
@@ -244,10 +240,15 @@ public class MainActivity extends Activity {
 
         LinearLayout controls = new LinearLayout(this);
 
-        controls.setOrientation(LinearLayout.HORIZONTAL);
+        controls.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
 
-        Button start = actionButton("START EA");
-        Button stop = actionButton("STOP EA");
+        Button start =
+                actionButton("START EA");
+
+        Button stop =
+                actionButton("STOP EA");
 
         controls.addView(
                 start,
@@ -271,11 +272,12 @@ public class MainActivity extends Activity {
 
         root.addView(bot);
 
-        // SCANNER
-
+        // MARKET SCANNER
         LinearLayout scanCard = card();
 
-        scanCard.addView(heading("MARKET SCANNER"));
+        scanCard.addView(
+                heading("MARKET SCANNER")
+        );
 
         scanner =
                 label(
@@ -289,17 +291,20 @@ public class MainActivity extends Activity {
                         WHITE
                 );
 
-        scanner.setTypeface(Typeface.MONOSPACE);
+        scanner.setTypeface(
+                Typeface.MONOSPACE
+        );
 
         scanCard.addView(scanner);
 
         root.addView(scanCard);
 
-        // POSITION CARD
-
+        // POSITIONS
         LinearLayout positions = card();
 
-        positions.addView(heading("POSITIONS"));
+        positions.addView(
+                heading("POSITIONS")
+        );
 
         positions.addView(
                 label(
@@ -317,12 +322,17 @@ public class MainActivity extends Activity {
 
         root.addView(positions);
 
-        // BOTTOM NAV
+        // BOTTOM NAVIGATION
+        LinearLayout navigation =
+                new LinearLayout(this);
 
-        LinearLayout navigation = new LinearLayout(this);
+        navigation.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
 
-        navigation.setOrientation(LinearLayout.HORIZONTAL);
-        navigation.setGravity(Gravity.CENTER);
+        navigation.setGravity(
+                Gravity.CENTER
+        );
 
         String[] tabs = {
                 "HOME",
@@ -333,7 +343,8 @@ public class MainActivity extends Activity {
 
         for (String tab : tabs) {
 
-            Button nav = actionButton(tab);
+            Button nav =
+                    actionButton(tab);
 
             navigation.addView(
                     nav,
@@ -348,7 +359,6 @@ public class MainActivity extends Activity {
         root.addView(navigation);
 
         // START EA
-
         start.setOnClickListener(v -> {
 
             status.setText("●  EA ONLINE");
@@ -365,7 +375,6 @@ public class MainActivity extends Activity {
         });
 
         // STOP EA
-
         stop.setOnClickListener(v -> {
 
             status.setText("●  EA OFFLINE");
@@ -381,11 +390,14 @@ public class MainActivity extends Activity {
             );
         });
 
+        // CLOSE ALL
         close.setOnClickListener(v -> {
 
-            dailyPL.setText("+R0.00     +0.00%");
+            dailyPL.setText(
+                    "+R0.00     +0.00%"
+            );
         });
 
         setContentView(scroll);
     }
-            }
+    }
