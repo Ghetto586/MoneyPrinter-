@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -13,20 +14,45 @@ import android.widget.TextView;
 
 public class MainActivity extends Activity {
 
-    // MoneyPrinter modern colors
+    // =========================
+    // MONEYPRINTER COLORS
+    // =========================
+
     private final int BG = Color.rgb(7, 10, 15);
     private final int CARD = Color.rgb(17, 22, 30);
-    private final int CARD2 = Color.rgb(29, 37, 48);
+    private final int CARD2 = Color.rgb(25, 32, 42);
     private final int WHITE = Color.rgb(255, 255, 255);
     private final int MUTED = Color.rgb(145, 154, 168);
     private final int GREEN = Color.rgb(0, 230, 118);
     private final int RED = Color.rgb(255, 82, 82);
     private final int GOLD = Color.rgb(255, 193, 7);
+    private final int BLUE = Color.rgb(80, 150, 255);
 
     private TextView status;
+    private TextView connectionText;
+
+    private TextView balance;
     private TextView equity;
+    private TextView margin;
+    private TextView floatingPL;
+
     private TextView dailyPL;
     private TextView scanner;
+    private TextView modeText;
+    private TextView eaState;
+
+    private Button startButton;
+    private Button stopButton;
+    private Button scalpButton;
+    private Button swingButton;
+
+    private boolean eaRunning = false;
+    private String tradingMode = "SCALP";
+
+
+    // =========================
+    // ACTIVITY
+    // =========================
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,26 +64,65 @@ public class MainActivity extends Activity {
         createDashboard();
     }
 
-    private TextView label(String value, float size, int color) {
+
+    // =========================
+    // TEXT HELPERS
+    // =========================
+
+    private TextView text(String value, float size, int color) {
+
         TextView view = new TextView(this);
+
         view.setText(value);
         view.setTextSize(size);
         view.setTextColor(color);
+
         view.setPadding(0, 4, 0, 4);
+
         return view;
     }
+
 
     private TextView heading(String value) {
-        TextView view = label(value, 17, WHITE);
-        view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+
+        TextView view = text(value, 17, WHITE);
+
+        view.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
+
         return view;
     }
 
+
+    // =========================
+    // CARD
+    // =========================
+
     private LinearLayout card() {
+
         LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(20, 18, 20, 18);
-        layout.setBackgroundColor(CARD);
+
+        layout.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        layout.setPadding(
+                20,
+                18,
+                20,
+                18
+        );
+
+        GradientDrawable background =
+                new GradientDrawable();
+
+        background.setColor(CARD);
+
+        background.setCornerRadius(22);
+
+        layout.setBackground(background);
 
         LinearLayout.LayoutParams params =
                 new LinearLayout.LayoutParams(
@@ -65,48 +130,131 @@ public class MainActivity extends Activity {
                         LinearLayout.LayoutParams.WRAP_CONTENT
                 );
 
-        params.setMargins(0, 7, 0, 7);
+        params.setMargins(
+                0,
+                8,
+                0,
+                8
+        );
+
         layout.setLayoutParams(params);
 
         return layout;
     }
 
-    private Button actionButton(String text) {
+
+    // =========================
+    // BUTTON
+    // =========================
+
+    private Button button(String value) {
+
         Button button = new Button(this);
-        button.setText(text);
+
+        button.setText(value);
         button.setTextSize(13);
         button.setTextColor(WHITE);
-        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+
+        button.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
+
         button.setAllCaps(false);
+
+        button.setGravity(
+                Gravity.CENTER
+        );
+
         return button;
     }
 
+
+    // =========================
+    // DASHBOARD
+    // =========================
+
     private void createDashboard() {
 
-        ScrollView scroll = new ScrollView(this);
+        ScrollView scroll =
+                new ScrollView(this);
+
         scroll.setBackgroundColor(BG);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(18, 28, 18, 20);
+        LinearLayout root =
+                new LinearLayout(this);
+
+        root.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        root.setPadding(
+                18,
+                24,
+                18,
+                25
+        );
 
         scroll.addView(root);
 
+
+        // =========================
         // HEADER
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
+        // =========================
 
-        TextView logo = label("MONEY", 23, WHITE);
-        logo.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        LinearLayout header =
+                new LinearLayout(this);
 
-        TextView printer = label("PRINTER", 23, GREEN);
-        printer.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        header.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
 
-        header.addView(logo);
+        header.setGravity(
+                Gravity.CENTER_VERTICAL
+        );
+
+
+        TextView money =
+                text(
+                        "MONEY",
+                        24,
+                        WHITE
+                );
+
+        money.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
+
+
+        TextView printer =
+                text(
+                        "PRINTER",
+                        24,
+                        GREEN
+                );
+
+        printer.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
+
+
+        header.addView(money);
         header.addView(printer);
 
-        TextView settings = label("⚙", 24, MUTED);
+
+        TextView settings =
+                text(
+                        "⚙",
+                        25,
+                        MUTED
+                );
+
+        settings.setGravity(
+                Gravity.RIGHT
+        );
+
 
         header.addView(
                 settings,
@@ -117,77 +265,127 @@ public class MainActivity extends Activity {
                 )
         );
 
-        settings.setGravity(Gravity.RIGHT);
 
         root.addView(header);
 
+
         TextView subtitle =
-                label("AI AUTOSCALP  •  MT5", 12, MUTED);
+                text(
+                        "AI TRADING HOST  •  MT5",
+                        12,
+                        MUTED
+                );
 
         root.addView(subtitle);
 
-        // STATUS
-        status = label("●  EA OFFLINE", 15, RED);
-        status.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        status.setPadding(0, 16, 0, 12);
+
+        // =========================
+        // CONNECTION STATUS
+        // =========================
+
+        status =
+                text(
+                        "●  NOT CONNECTED",
+                        15,
+                        RED
+                );
+
+        status.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
+
+        status.setPadding(
+                0,
+                18,
+                0,
+                5
+        );
 
         root.addView(status);
 
-        // EQUITY CARD
-        LinearLayout equityCard = card();
 
-        equityCard.addView(
-                label("EQUITY", 12, MUTED)
-        );
-
-        equity = label("R10,000.00", 30, WHITE);
-        equity.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-
-        equityCard.addView(equity);
-
-        dailyPL =
-                label("+R0.00     +0.00%", 14, GREEN);
-
-        equityCard.addView(dailyPL);
-
-        TextView chart =
-                label(
-                        "\n   ╱╲      ╱╲\n" +
-                        " ╱    ╲  ╱    ╲___\n" +
-                        "╱       ╲╱         ╲\n",
-                        17,
-                        GREEN
+        connectionText =
+                text(
+                        "Connect your MoneyPrinter EA to display live account data.",
+                        12,
+                        MUTED
                 );
 
-        equityCard.addView(chart);
+        root.addView(connectionText);
 
-        root.addView(equityCard);
 
-        // ACCOUNT
-        LinearLayout account = card();
+        // =========================
+        // ACCOUNT OVERVIEW
+        // =========================
+
+        LinearLayout account =
+                card();
 
         account.addView(
-                heading("ACCOUNT")
+                heading("ACCOUNT OVERVIEW")
         );
 
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
 
-        TextView balance =
-                label(
-                        "BALANCE\nR10,000.00",
+        equity =
+                text(
+                        "—",
+                        31,
+                        WHITE
+                );
+
+        equity.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
+
+
+        account.addView(
+                text(
+                        "EQUITY",
+                        11,
+                        MUTED
+                )
+        );
+
+        account.addView(equity);
+
+
+        dailyPL =
+                text(
+                        "P/L  —",
+                        14,
+                        MUTED
+                );
+
+        account.addView(dailyPL);
+
+
+        LinearLayout accountRow =
+                new LinearLayout(this);
+
+        accountRow.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
+
+
+        balance =
+                text(
+                        "BALANCE\n—",
                         14,
                         WHITE
                 );
 
-        TextView margin =
-                label(
-                        "FREE MARGIN\nR9,850.00",
+
+        margin =
+                text(
+                        "FREE MARGIN\n—",
                         14,
                         WHITE
                 );
 
-        row.addView(
+
+        accountRow.addView(
                 balance,
                 new LinearLayout.LayoutParams(
                         0,
@@ -196,7 +394,8 @@ public class MainActivity extends Activity {
                 )
         );
 
-        row.addView(
+
+        accountRow.addView(
                 margin,
                 new LinearLayout.LayoutParams(
                         0,
@@ -205,124 +404,249 @@ public class MainActivity extends Activity {
                 )
         );
 
-        account.addView(row);
+
+        account.addView(accountRow);
+
+
+        floatingPL =
+                text(
+                        "FLOATING P/L\n—",
+                        14,
+                        WHITE
+                );
+
+        account.addView(floatingPL);
+
 
         root.addView(account);
 
-        // AUTOSCALP
-        LinearLayout bot = card();
 
-        bot.addView(
-                heading("AUTOSCALP")
+        // =========================
+        // EA CONTROL
+        // =========================
+
+        LinearLayout ea =
+                card();
+
+
+        ea.addView(
+                heading("MONEYPRINTER EA")
         );
 
-        TextView mode =
-                label(
-                        "● READY        SCALP",
+
+        eaState =
+                text(
+                        "● EA STOPPED",
                         15,
-                        GREEN
+                        RED
                 );
 
-        mode.setTypeface(
+        eaState.setTypeface(
                 Typeface.DEFAULT,
                 Typeface.BOLD
         );
 
-        bot.addView(mode);
+        ea.addView(eaState);
 
-        bot.addView(
-                label(
-                        "Risk  1.00%        Lot  AUTO        Max  8",
+
+        modeText =
+                text(
+                        "Trading Mode: SCALP",
+                        14,
+                        WHITE
+                );
+
+        modeText.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
+
+        ea.addView(modeText);
+
+
+        ea.addView(
+                text(
+                        "Risk     1.00%\n" +
+                        "Lot      AUTO\n" +
+                        "Max      8 trades",
                         13,
                         MUTED
                 )
         );
 
-        LinearLayout controls = new LinearLayout(this);
+
+        // =========================
+        // MODE BUTTONS
+        // =========================
+
+        LinearLayout modes =
+                new LinearLayout(this);
+
+        modes.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
+
+
+        scalpButton =
+                button("SCALP MODE");
+
+
+        swingButton =
+                button("SWING MODE");
+
+
+        modes.addView(
+                scalpButton,
+                new LinearLayout.LayoutParams(
+                        0,
+                        58,
+                        1
+                )
+        );
+
+
+        modes.addView(
+                swingButton,
+                new LinearLayout.LayoutParams(
+                        0,
+                        58,
+                        1
+                )
+        );
+
+
+        ea.addView(modes);
+
+
+        // =========================
+        // START / STOP
+        // =========================
+
+        LinearLayout controls =
+                new LinearLayout(this);
 
         controls.setOrientation(
                 LinearLayout.HORIZONTAL
         );
 
-        Button start =
-                actionButton("START EA");
 
-        Button stop =
-                actionButton("STOP EA");
+        startButton =
+                button("START EA");
+
+
+        stopButton =
+                button("STOP EA");
+
 
         controls.addView(
-                start,
+                startButton,
                 new LinearLayout.LayoutParams(
                         0,
-                        60,
+                        62,
                         1
                 )
         );
 
+
         controls.addView(
-                stop,
+                stopButton,
                 new LinearLayout.LayoutParams(
                         0,
-                        60,
+                        62,
                         1
                 )
         );
 
-        bot.addView(controls);
 
-        root.addView(bot);
+        ea.addView(controls);
 
+
+        root.addView(ea);
+
+
+        // =========================
         // MARKET SCANNER
-        LinearLayout scanCard = card();
+        // =========================
 
-        scanCard.addView(
-                heading("MARKET SCANNER")
+        LinearLayout scannerCard =
+                card();
+
+
+        scannerCard.addView(
+                heading("AI MARKET SCANNER")
         );
+
 
         scanner =
-                label(
-                        "NASDAQ        WAIT     --\n" +
-                        "US30          WAIT     --\n" +
-                        "GOLD          WAIT     --\n" +
-                        "USDJPY        WAIT     --\n" +
-                        "GBPUSD        WAIT     --\n" +
-                        "SYNTHETIC     WAIT     --",
+                text(
+                        "NASDAQ        —       —\n" +
+                        "US30          —       —\n" +
+                        "GOLD          —       —\n" +
+                        "USDJPY        —       —\n" +
+                        "GBPUSD        —       —\n" +
+                        "SYNTHETIC     —       —",
                         14,
                         WHITE
                 );
+
 
         scanner.setTypeface(
                 Typeface.MONOSPACE
         );
 
-        scanCard.addView(scanner);
 
-        root.addView(scanCard);
+        scannerCard.addView(scanner);
 
+
+        scannerCard.addView(
+                text(
+                        "Scanner data will appear when the EA connection is active.",
+                        11,
+                        MUTED
+                )
+        );
+
+
+        root.addView(scannerCard);
+
+
+        // =========================
         // POSITIONS
-        LinearLayout positions = card();
+        // =========================
+
+        LinearLayout positions =
+                card();
+
 
         positions.addView(
                 heading("POSITIONS")
         );
 
+
         positions.addView(
-                label(
-                        "Open Trades       0\n" +
-                        "Floating P/L      R0.00",
+                text(
+                        "OPEN TRADES        0\n" +
+                        "FLOATING P/L       —",
                         14,
                         WHITE
                 )
         );
 
-        Button close =
-                actionButton("CLOSE ALL");
 
-        positions.addView(close);
+        Button closeAll =
+                button("CLOSE ALL TRADES");
+
+
+        positions.addView(closeAll);
+
 
         root.addView(positions);
 
-        // BOTTOM NAVIGATION
+
+        // =========================
+        // NAVIGATION
+        // =========================
+
         LinearLayout navigation =
                 new LinearLayout(this);
 
@@ -334,6 +658,7 @@ public class MainActivity extends Activity {
                 Gravity.CENTER
         );
 
+
         String[] tabs = {
                 "HOME",
                 "MARKETS",
@@ -341,62 +666,212 @@ public class MainActivity extends Activity {
                 "HISTORY"
         };
 
+
         for (String tab : tabs) {
 
             Button nav =
-                    actionButton(tab);
+                    button(tab);
 
             navigation.addView(
                     nav,
                     new LinearLayout.LayoutParams(
                             0,
-                            60,
+                            58,
                             1
                     )
             );
         }
 
+
         root.addView(navigation);
 
+
+        // =========================
+        // SCALP MODE
+        // =========================
+
+        scalpButton.setOnClickListener(
+                new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+
+                        tradingMode = "SCALP";
+
+                        modeText.setText(
+                                "Trading Mode: SCALP"
+                        );
+
+                        modeText.setTextColor(
+                                GREEN
+                        );
+
+                        scalpButton.setText(
+                                "✓ SCALP MODE"
+                        );
+
+                        swingButton.setText(
+                                "SWING MODE"
+                        );
+                    }
+                }
+        );
+
+
+        // =========================
+        // SWING MODE
+        // =========================
+
+        swingButton.setOnClickListener(
+                new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+
+                        tradingMode = "SWING";
+
+                        modeText.setText(
+                                "Trading Mode: SWING"
+                        );
+
+                        modeText.setTextColor(
+                                GOLD
+                        );
+
+                        scalpButton.setText(
+                                "SCALP MODE"
+                        );
+
+                        swingButton.setText(
+                                "✓ SWING MODE"
+                        );
+                    }
+                }
+        );
+
+
+        // =========================
         // START EA
-        start.setOnClickListener(v -> {
+        // =========================
 
-            status.setText("●  EA ONLINE");
-            status.setTextColor(GREEN);
+        startButton.setOnClickListener(
+                new View.OnClickListener() {
 
-            scanner.setText(
-                    "NASDAQ        BUY      87%\n" +
-                    "US30          WAIT     54%\n" +
-                    "GOLD          BUY      91%\n" +
-                    "USDJPY        SELL     78%\n" +
-                    "GBPUSD        WAIT     48%\n" +
-                    "SYNTHETIC     WAIT     52%"
-            );
-        });
+                    @Override
+                    public void onClick(View v) {
 
+                        eaRunning = true;
+
+                        status.setText(
+                                "●  EA READY"
+                        );
+
+                        status.setTextColor(
+                                GREEN
+                        );
+
+
+                        eaState.setText(
+                                "● EA START REQUESTED"
+                        );
+
+                        eaState.setTextColor(
+                                GREEN
+                        );
+
+
+                        connectionText.setText(
+                                "Waiting for live MT5/EA connection..."
+                        );
+
+
+                        scanner.setText(
+                                "NASDAQ        CONNECTING   --\n" +
+                                "US30          CONNECTING   --\n" +
+                                "GOLD          CONNECTING   --\n" +
+                                "USDJPY        CONNECTING   --\n" +
+                                "GBPUSD        CONNECTING   --\n" +
+                                "SYNTHETIC     CONNECTING   --"
+                        );
+                    }
+                }
+        );
+
+
+        // =========================
         // STOP EA
-        stop.setOnClickListener(v -> {
+        // =========================
 
-            status.setText("●  EA OFFLINE");
-            status.setTextColor(RED);
+        stopButton.setOnClickListener(
+                new View.OnClickListener() {
 
-            scanner.setText(
-                    "NASDAQ        WAIT     --\n" +
-                    "US30          WAIT     --\n" +
-                    "GOLD          WAIT     --\n" +
-                    "USDJPY        WAIT     --\n" +
-                    "GBPUSD        WAIT     --\n" +
-                    "SYNTHETIC     WAIT     --"
-            );
-        });
+                    @Override
+                    public void onClick(View v) {
 
+                        eaRunning = false;
+
+                        status.setText(
+                                "●  EA STOPPED"
+                        );
+
+                        status.setTextColor(
+                                RED
+                        );
+
+
+                        eaState.setText(
+                                "● EA STOPPED"
+                        );
+
+                        eaState.setTextColor(
+                                RED
+                        );
+
+
+                        connectionText.setText(
+                                "EA is not running."
+                        );
+
+
+                        scanner.setText(
+                                "NASDAQ        —       —\n" +
+                                "US30          —       —\n" +
+                                "GOLD          —       —\n" +
+                                "USDJPY        —       —\n" +
+                                "GBPUSD        —       —\n" +
+                                "SYNTHETIC     —       —"
+                        );
+                    }
+                }
+        );
+
+
+        // =========================
         // CLOSE ALL
-        close.setOnClickListener(v -> {
+        // =========================
 
-            dailyPL.setText(
-                    "+R0.00     +0.00%"
-            );
-        });
+        closeAll.setOnClickListener(
+                new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+
+                        if (!eaRunning) {
+
+                            connectionText.setText(
+                                    "No EA connection. Nothing was closed."
+                            );
+
+                        } else {
+
+                            connectionText.setText(
+                                    "Close-all request ready for EA."
+                            );
+                        }
+                    }
+                }
+        );
+
 
         setContentView(scroll);
     }
