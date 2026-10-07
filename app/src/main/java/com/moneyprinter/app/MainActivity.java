@@ -8,9 +8,13 @@ import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.ArrayList;
 
 public class MainActivity extends Activity {
 
@@ -20,7 +24,6 @@ public class MainActivity extends Activity {
 
     private final int BG = Color.rgb(7, 10, 15);
     private final int CARD = Color.rgb(17, 22, 30);
-    private final int CARD2 = Color.rgb(25, 32, 42);
     private final int WHITE = Color.rgb(255, 255, 255);
     private final int MUTED = Color.rgb(145, 154, 168);
     private final int GREEN = Color.rgb(0, 230, 118);
@@ -28,26 +31,39 @@ public class MainActivity extends Activity {
     private final int GOLD = Color.rgb(255, 193, 7);
     private final int BLUE = Color.rgb(80, 150, 255);
 
-    private TextView status;
-    private TextView connectionText;
+    // =========================
+    // EA DATA
+    // =========================
 
-    private TextView balance;
-    private TextView equity;
-    private TextView margin;
-    private TextView floatingPL;
+    private ArrayList<EAItem> eaList =
+            new ArrayList<>();
 
-    private TextView dailyPL;
-    private TextView scanner;
-    private TextView modeText;
-    private TextView eaState;
+    private LinearLayout eaContainer;
 
-    private Button startButton;
-    private Button stopButton;
-    private Button scalpButton;
-    private Button swingButton;
+    private TextView hostStatus;
+    private TextView totalEA;
+    private TextView runningEA;
 
-    private boolean eaRunning = false;
-    private String tradingMode = "SCALP";
+    // =========================
+    // EA MODEL
+    // =========================
+
+    private static class EAItem {
+
+        String name;
+        String mode;
+        boolean running;
+
+        EAItem(
+                String name,
+                String mode,
+                boolean running
+        ) {
+            this.name = name;
+            this.mode = mode;
+            this.running = running;
+        }
+    }
 
 
     // =========================
@@ -56,36 +72,63 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
 
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
+
+        // Example EA
+        eaList.add(
+                new EAItem(
+                        "MoneyMaker AutoScalp",
+                        "SCALP",
+                        false
+                )
+        );
 
         createDashboard();
     }
 
 
     // =========================
-    // TEXT HELPERS
+    // TEXT
     // =========================
 
-    private TextView text(String value, float size, int color) {
+    private TextView text(
+            String value,
+            float size,
+            int color
+    ) {
 
-        TextView view = new TextView(this);
+        TextView view =
+                new TextView(this);
 
         view.setText(value);
         view.setTextSize(size);
         view.setTextColor(color);
 
-        view.setPadding(0, 4, 0, 4);
+        view.setPadding(
+                0,
+                4,
+                0,
+                4
+        );
 
         return view;
     }
 
 
-    private TextView heading(String value) {
+    private TextView heading(
+            String value
+    ) {
 
-        TextView view = text(value, 17, WHITE);
+        TextView view =
+                text(
+                        value,
+                        17,
+                        WHITE
+                );
 
         view.setTypeface(
                 Typeface.DEFAULT,
@@ -102,7 +145,8 @@ public class MainActivity extends Activity {
 
     private LinearLayout card() {
 
-        LinearLayout layout = new LinearLayout(this);
+        LinearLayout layout =
+                new LinearLayout(this);
 
         layout.setOrientation(
                 LinearLayout.VERTICAL
@@ -119,10 +163,11 @@ public class MainActivity extends Activity {
                 new GradientDrawable();
 
         background.setColor(CARD);
-
         background.setCornerRadius(22);
 
-        layout.setBackground(background);
+        layout.setBackground(
+                background
+        );
 
         LinearLayout.LayoutParams params =
                 new LinearLayout.LayoutParams(
@@ -147,9 +192,12 @@ public class MainActivity extends Activity {
     // BUTTON
     // =========================
 
-    private Button button(String value) {
+    private Button button(
+            String value
+    ) {
 
-        Button button = new Button(this);
+        Button button =
+                new Button(this);
 
         button.setText(value);
         button.setTextSize(13);
@@ -269,610 +317,723 @@ public class MainActivity extends Activity {
         root.addView(header);
 
 
-        TextView subtitle =
+        root.addView(
                 text(
-                        "AI TRADING HOST  •  MT5",
+                        "MULTI-EA HOST  •  MT5",
                         12,
                         MUTED
-                );
-
-        root.addView(subtitle);
+                )
+        );
 
 
         // =========================
-        // CONNECTION STATUS
+        // HOST STATUS
         // =========================
 
-        status =
+        hostStatus =
                 text(
-                        "●  NOT CONNECTED",
+                        "●  MT5 HOST NOT CONNECTED",
                         15,
                         RED
                 );
 
-        status.setTypeface(
+        hostStatus.setTypeface(
                 Typeface.DEFAULT,
                 Typeface.BOLD
         );
 
-        status.setPadding(
+        hostStatus.setPadding(
                 0,
                 18,
                 0,
                 5
         );
 
-        root.addView(status);
+        root.addView(hostStatus);
 
 
-        connectionText =
+        root.addView(
                 text(
-                        "Connect your MoneyPrinter EA to display live account data.",
+                        "Connect your MT5 bridge to receive live EA data.",
                         12,
                         MUTED
-                );
-
-        root.addView(connectionText);
-
-
-        // =========================
-        // ACCOUNT OVERVIEW
-        // =========================
-
-        LinearLayout account =
-                card();
-
-        account.addView(
-                heading("ACCOUNT OVERVIEW")
-        );
-
-
-        equity =
-                text(
-                        "—",
-                        31,
-                        WHITE
-                );
-
-        equity.setTypeface(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-        );
-
-
-        account.addView(
-                text(
-                        "EQUITY",
-                        11,
-                        MUTED
                 )
         );
 
-        account.addView(equity);
+
+        // =========================
+        // EA SUMMARY
+        // =========================
+
+        LinearLayout summary =
+                card();
+
+        summary.addView(
+                heading("EA MANAGER")
+        );
 
 
-        dailyPL =
+        totalEA =
                 text(
-                        "P/L  —",
+                        "TOTAL EAs: 0",
                         14,
-                        MUTED
+                        WHITE
                 );
 
-        account.addView(dailyPL);
+
+        runningEA =
+                text(
+                        "RUNNING: 0",
+                        14,
+                        GREEN
+                );
 
 
-        LinearLayout accountRow =
+        summary.addView(totalEA);
+        summary.addView(runningEA);
+
+
+        root.addView(summary);
+
+
+        // =========================
+        // EA LIST
+        // =========================
+
+        LinearLayout listCard =
+                card();
+
+
+        listCard.addView(
+                heading("YOUR EAs")
+        );
+
+
+        eaContainer =
                 new LinearLayout(this);
 
-        accountRow.setOrientation(
-                LinearLayout.HORIZONTAL
+        eaContainer.setOrientation(
+                LinearLayout.VERTICAL
         );
 
 
-        balance =
-                text(
-                        "BALANCE\n—",
-                        14,
-                        WHITE
+        listCard.addView(
+                eaContainer
+        );
+
+
+        root.addView(listCard);
+
+
+        // =========================
+        // ADD EA
+        // =========================
+
+        Button addEA =
+                button(
+                        "+ ADD EA"
                 );
 
 
-        margin =
-                text(
-                        "FREE MARGIN\n—",
-                        14,
-                        WHITE
-                );
+        addEA.setTextSize(15);
 
 
-        accountRow.addView(
-                balance,
+        root.addView(
+                addEA,
                 new LinearLayout.LayoutParams(
-                        0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        1
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        62
                 )
         );
 
 
-        accountRow.addView(
-                margin,
+        // =========================
+        // STOP ALL
+        // =========================
+
+        Button stopAll =
+                button(
+                        "STOP ALL EAs"
+                );
+
+
+        stopAll.setTextColor(
+                RED
+        );
+
+
+        root.addView(
+                stopAll,
                 new LinearLayout.LayoutParams(
-                        0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        1
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        62
                 )
         );
 
 
-        account.addView(accountRow);
-
-
-        floatingPL =
-                text(
-                        "FLOATING P/L\n—",
-                        14,
-                        WHITE
-                );
-
-        account.addView(floatingPL);
-
-
-        root.addView(account);
-
-
         // =========================
-        // EA CONTROL
+        // ADD EA CLICK
         // =========================
 
-        LinearLayout ea =
-                card();
+        addEA.setOnClickListener(
+                new View.OnClickListener() {
 
+                    @Override
+                    public void onClick(View v) {
 
-        ea.addView(
-                heading("MONEYPRINTER EA")
+                        showAddEADialog();
+                    }
+                }
         );
 
 
-        eaState =
-                text(
-                        "● EA STOPPED",
-                        15,
-                        RED
+        // =========================
+        // STOP ALL
+        // =========================
+
+        stopAll.setOnClickListener(
+                new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+
+                        for (EAItem ea : eaList) {
+
+                            ea.running = false;
+                        }
+
+                        refreshEAList();
+
+                        Toast.makeText(
+                                MainActivity.this,
+                                "All EAs stopped",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                }
+        );
+
+
+        // =========================
+        // INITIAL LIST
+        // =========================
+
+        refreshEAList();
+
+
+        setContentView(scroll);
+    }
+
+
+    // =========================
+    // REFRESH EA LIST
+    // =========================
+
+    private void refreshEAList() {
+
+        if (eaContainer == null) {
+            return;
+        }
+
+
+        eaContainer.removeAllViews();
+
+
+        int runningCount = 0;
+
+
+        for (
+                int i = 0;
+                i < eaList.size();
+                i++
+        ) {
+
+            EAItem ea =
+                    eaList.get(i);
+
+
+            if (ea.running) {
+                runningCount++;
+            }
+
+
+            createEACard(
+                    ea,
+                    i
+            );
+        }
+
+
+        totalEA.setText(
+                "TOTAL EAs: " +
+                        eaList.size()
+        );
+
+
+        runningEA.setText(
+                "RUNNING: " +
+                        runningCount
+        );
+    }
+
+
+    // =========================
+    // EA CARD
+    // =========================
+
+    private void createEACard(
+            final EAItem ea,
+            final int index
+    ) {
+
+        LinearLayout item =
+                new LinearLayout(this);
+
+        item.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        item.setPadding(
+                16,
+                16,
+                16,
+                16
+        );
+
+
+        GradientDrawable background =
+                new GradientDrawable();
+
+        background.setColor(
+                Color.rgb(25, 32, 42)
+        );
+
+        background.setCornerRadius(
+                18
+        );
+
+
+        item.setBackground(
+                background
+        );
+
+
+        LinearLayout.LayoutParams itemParams =
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
                 );
 
-        eaState.setTypeface(
+
+        itemParams.setMargins(
+                0,
+                7,
+                0,
+                7
+        );
+
+
+        item.setLayoutParams(
+                itemParams
+        );
+
+
+        // =========================
+        // NAME
+        // =========================
+
+        TextView name =
+                text(
+                        ea.name,
+                        17,
+                        WHITE
+                );
+
+
+        name.setTypeface(
                 Typeface.DEFAULT,
                 Typeface.BOLD
         );
 
-        ea.addView(eaState);
+
+        item.addView(name);
 
 
-        modeText =
+        // =========================
+        // STATUS
+        // =========================
+
+        String statusText;
+
+
+        if (ea.running) {
+
+            statusText =
+                    "● RUNNING     " +
+                            ea.mode;
+
+        } else {
+
+            statusText =
+                    "● STOPPED     " +
+                            ea.mode;
+        }
+
+
+        TextView state =
                 text(
-                        "Trading Mode: SCALP",
-                        14,
-                        WHITE
-                );
-
-        modeText.setTypeface(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-        );
-
-        ea.addView(modeText);
-
-
-        ea.addView(
-                text(
-                        "Risk     1.00%\n" +
-                        "Lot      AUTO\n" +
-                        "Max      8 trades",
+                        statusText,
                         13,
-                        MUTED
+                        ea.running
+                                ? GREEN
+                                : MUTED
+                );
+
+
+        item.addView(state);
+
+
+        // =========================
+        // DATA
+        // =========================
+
+        item.addView(
+                text(
+                        "P/L       —\n" +
+                        "Trades    —\n" +
+                        "Equity    —",
+                        13,
+                        WHITE
                 )
         );
 
 
         // =========================
-        // MODE BUTTONS
+        // MODE ROW
         // =========================
 
-        LinearLayout modes =
+        LinearLayout modeRow =
                 new LinearLayout(this);
 
-        modes.setOrientation(
+
+        modeRow.setOrientation(
                 LinearLayout.HORIZONTAL
         );
 
 
-        scalpButton =
-                button("SCALP MODE");
+        Button scalp =
+                button(
+                        "SCALP"
+                );
 
 
-        swingButton =
-                button("SWING MODE");
+        Button swing =
+                button(
+                        "SWING"
+                );
 
 
-        modes.addView(
-                scalpButton,
+        modeRow.addView(
+                scalp,
                 new LinearLayout.LayoutParams(
                         0,
-                        58,
+                        55,
                         1
                 )
         );
 
 
-        modes.addView(
-                swingButton,
+        modeRow.addView(
+                swing,
                 new LinearLayout.LayoutParams(
                         0,
-                        58,
+                        55,
                         1
                 )
         );
 
 
-        ea.addView(modes);
+        item.addView(modeRow);
 
 
         // =========================
-        // START / STOP
+        // CONTROL ROW
         // =========================
 
         LinearLayout controls =
                 new LinearLayout(this);
+
 
         controls.setOrientation(
                 LinearLayout.HORIZONTAL
         );
 
 
-        startButton =
-                button("START EA");
-
-
-        stopButton =
-                button("STOP EA");
-
-
-        controls.addView(
-                startButton,
-                new LinearLayout.LayoutParams(
-                        0,
-                        62,
-                        1
-                )
-        );
-
-
-        controls.addView(
-                stopButton,
-                new LinearLayout.LayoutParams(
-                        0,
-                        62,
-                        1
-                )
-        );
-
-
-        ea.addView(controls);
-
-
-        root.addView(ea);
-
-
-        // =========================
-        // MARKET SCANNER
-        // =========================
-
-        LinearLayout scannerCard =
-                card();
-
-
-        scannerCard.addView(
-                heading("AI MARKET SCANNER")
-        );
-
-
-        scanner =
-                text(
-                        "NASDAQ        —       —\n" +
-                        "US30          —       —\n" +
-                        "GOLD          —       —\n" +
-                        "USDJPY        —       —\n" +
-                        "GBPUSD        —       —\n" +
-                        "SYNTHETIC     —       —",
-                        14,
-                        WHITE
+        Button start =
+                button(
+                        "START"
                 );
 
 
-        scanner.setTypeface(
-                Typeface.MONOSPACE
-        );
+        Button stop =
+                button(
+                        "STOP"
+                );
 
 
-        scannerCard.addView(scanner);
-
-
-        scannerCard.addView(
-                text(
-                        "Scanner data will appear when the EA connection is active.",
-                        11,
-                        MUTED
+        controls.addView(
+                start,
+                new LinearLayout.LayoutParams(
+                        0,
+                        55,
+                        1
                 )
         );
 
 
-        root.addView(scannerCard);
-
-
-        // =========================
-        // POSITIONS
-        // =========================
-
-        LinearLayout positions =
-                card();
-
-
-        positions.addView(
-                heading("POSITIONS")
-        );
-
-
-        positions.addView(
-                text(
-                        "OPEN TRADES        0\n" +
-                        "FLOATING P/L       —",
-                        14,
-                        WHITE
+        controls.addView(
+                stop,
+                new LinearLayout.LayoutParams(
+                        0,
+                        55,
+                        1
                 )
         );
 
 
-        Button closeAll =
-                button("CLOSE ALL TRADES");
-
-
-        positions.addView(closeAll);
-
-
-        root.addView(positions);
+        item.addView(controls);
 
 
         // =========================
-        // NAVIGATION
+        // SCALP
         // =========================
 
-        LinearLayout navigation =
+        scalp.setOnClickListener(
+                new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+
+                        ea.mode = "SCALP";
+
+                        refreshEAList();
+
+                        Toast.makeText(
+                                MainActivity.this,
+                                ea.name +
+                                        " → SCALP",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                }
+        );
+
+
+        // =========================
+        // SWING
+        // =========================
+
+        swing.setOnClickListener(
+                new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+
+                        ea.mode = "SWING";
+
+                        refreshEAList();
+
+                        Toast.makeText(
+                                MainActivity.this,
+                                ea.name +
+                                        " → SWING",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                }
+        );
+
+
+        // =========================
+        // START
+        // =========================
+
+        start.setOnClickListener(
+                new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+
+                        ea.running = true;
+
+                        refreshEAList();
+
+                        Toast.makeText(
+                                MainActivity.this,
+                                ea.name +
+                                        " start requested",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                }
+        );
+
+
+        // =========================
+        // STOP
+        // =========================
+
+        stop.setOnClickListener(
+                new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+
+                        ea.running = false;
+
+                        refreshEAList();
+
+                        Toast.makeText(
+                                MainActivity.this,
+                                ea.name +
+                                        " stopped",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                }
+        );
+
+
+        eaContainer.addView(item);
+    }
+
+
+    // =========================
+    // ADD EA DIALOG
+    // =========================
+
+    private void showAddEADialog() {
+
+        final android.app.AlertDialog dialog =
+                new android.app.AlertDialog.Builder(
+                        this
+                ).create();
+
+
+        LinearLayout layout =
                 new LinearLayout(this);
 
-        navigation.setOrientation(
-                LinearLayout.HORIZONTAL
-        );
 
-        navigation.setGravity(
-                Gravity.CENTER
+        layout.setOrientation(
+                LinearLayout.VERTICAL
         );
 
 
-        String[] tabs = {
-                "HOME",
-                "MARKETS",
-                "TRADE",
-                "HISTORY"
-        };
+        layout.setPadding(
+                35,
+                25,
+                35,
+                20
+        );
 
 
-        for (String tab : tabs) {
-
-            Button nav =
-                    button(tab);
-
-            navigation.addView(
-                    nav,
-                    new LinearLayout.LayoutParams(
-                            0,
-                            58,
-                            1
-                    )
-            );
-        }
+        TextView title =
+                heading(
+                        "ADD NEW EA"
+                );
 
 
-        root.addView(navigation);
+        layout.addView(title);
 
 
-        // =========================
-        // SCALP MODE
-        // =========================
+        final EditText nameInput =
+                new EditText(this);
 
-        scalpButton.setOnClickListener(
+
+        nameInput.setHint(
+                "EA name"
+        );
+
+
+        nameInput.setTextColor(
+                WHITE
+        );
+
+
+        nameInput.setHintTextColor(
+                MUTED
+        );
+
+
+        layout.addView(
+                nameInput
+        );
+
+
+        Button add =
+                button(
+                        "ADD EA"
+                );
+
+
+        layout.addView(
+                add
+        );
+
+
+        add.setOnClickListener(
                 new View.OnClickListener() {
 
                     @Override
                     public void onClick(View v) {
 
-                        tradingMode = "SCALP";
-
-                        modeText.setText(
-                                "Trading Mode: SCALP"
-                        );
-
-                        modeText.setTextColor(
-                                GREEN
-                        );
-
-                        scalpButton.setText(
-                                "✓ SCALP MODE"
-                        );
-
-                        swingButton.setText(
-                                "SWING MODE"
-                        );
-                    }
-                }
-        );
+                        String name =
+                                nameInput
+                                        .getText()
+                                        .toString()
+                                        .trim();
 
 
-        // =========================
-        // SWING MODE
-        // =========================
+                        if (name.length() == 0) {
 
-        swingButton.setOnClickListener(
-                new View.OnClickListener() {
+                            Toast.makeText(
+                                    MainActivity.this,
+                                    "Enter an EA name",
+                                    Toast.LENGTH_SHORT
+                            ).show();
 
-                    @Override
-                    public void onClick(View v) {
-
-                        tradingMode = "SWING";
-
-                        modeText.setText(
-                                "Trading Mode: SWING"
-                        );
-
-                        modeText.setTextColor(
-                                GOLD
-                        );
-
-                        scalpButton.setText(
-                                "SCALP MODE"
-                        );
-
-                        swingButton.setText(
-                                "✓ SWING MODE"
-                        );
-                    }
-                }
-        );
-
-
-        // =========================
-        // START EA
-        // =========================
-
-        startButton.setOnClickListener(
-                new View.OnClickListener() {
-
-                    @Override
-                    public void onClick(View v) {
-
-                        eaRunning = true;
-
-                        status.setText(
-                                "●  EA READY"
-                        );
-
-                        status.setTextColor(
-                                GREEN
-                        );
-
-
-                        eaState.setText(
-                                "● EA START REQUESTED"
-                        );
-
-                        eaState.setTextColor(
-                                GREEN
-                        );
-
-
-                        connectionText.setText(
-                                "Waiting for live MT5/EA connection..."
-                        );
-
-
-                        scanner.setText(
-                                "NASDAQ        CONNECTING   --\n" +
-                                "US30          CONNECTING   --\n" +
-                                "GOLD          CONNECTING   --\n" +
-                                "USDJPY        CONNECTING   --\n" +
-                                "GBPUSD        CONNECTING   --\n" +
-                                "SYNTHETIC     CONNECTING   --"
-                        );
-                    }
-                }
-        );
-
-
-        // =========================
-        // STOP EA
-        // =========================
-
-        stopButton.setOnClickListener(
-                new View.OnClickListener() {
-
-                    @Override
-                    public void onClick(View v) {
-
-                        eaRunning = false;
-
-                        status.setText(
-                                "●  EA STOPPED"
-                        );
-
-                        status.setTextColor(
-                                RED
-                        );
-
-
-                        eaState.setText(
-                                "● EA STOPPED"
-                        );
-
-                        eaState.setTextColor(
-                                RED
-                        );
-
-
-                        connectionText.setText(
-                                "EA is not running."
-                        );
-
-
-                        scanner.setText(
-                                "NASDAQ        —       —\n" +
-                                "US30          —       —\n" +
-                                "GOLD          —       —\n" +
-                                "USDJPY        —       —\n" +
-                                "GBPUSD        —       —\n" +
-                                "SYNTHETIC     —       —"
-                        );
-                    }
-                }
-        );
-
-
-        // =========================
-        // CLOSE ALL
-        // =========================
-
-        closeAll.setOnClickListener(
-                new View.OnClickListener() {
-
-                    @Override
-                    public void onClick(View v) {
-
-                        if (!eaRunning) {
-
-                            connectionText.setText(
-                                    "No EA connection. Nothing was closed."
-                            );
-
-                        } else {
-
-                            connectionText.setText(
-                                    "Close-all request ready for EA."
-                            );
+                            return;
                         }
+
+
+                        eaList.add(
+                                new EAItem(
+                                        name,
+                                        "SCALP",
+                                        false
+                                )
+                        );
+
+
+                        refreshEAList();
+
+
+                        dialog.dismiss();
+
+
+                        Toast.makeText(
+                                MainActivity.this,
+                                name +
+                                        " added",
+                                Toast.LENGTH_SHORT
+                        ).show();
                     }
                 }
         );
 
 
-        setContentView(scroll);
+        dialog.setView(layout);
+
+        dialog.show();
     }
-    }
+}
