@@ -13,6 +13,11 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ImageView;
+import android.content.Intent;
+import android.net.Uri;
+import android.provider.MediaStore;
+import android.graphics.Bitmap;
 
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -22,7 +27,6 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
@@ -33,6 +37,7 @@ public class MainActivity extends Activity {
 
     private final int BG = Color.rgb(7, 10, 15);
     private final int CARD = Color.rgb(17, 22, 30);
+    private final int INNER = Color.rgb(25, 32, 42);
     private final int WHITE = Color.rgb(255, 255, 255);
     private final int MUTED = Color.rgb(145, 154, 168);
     private final int GREEN = Color.rgb(0, 230, 118);
@@ -61,6 +66,19 @@ public class MainActivity extends Activity {
     private TextView hostStatus;
     private TextView totalEA;
     private TextView runningEA;
+
+    // =========================
+    // AI SCANNER
+    // =========================
+
+    private ImageView chartPreview;
+    private TextView chartStatus;
+    private TextView aiResult;
+
+    private Uri selectedChartUri;
+
+    private static final int PICK_CHART =
+            501;
 
     // =========================
     // EA MODEL
@@ -106,7 +124,6 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
 
-        // Default EA
         eaList.add(
                 new EAItem(
                         EA_ID,
@@ -201,7 +218,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================
-    // READ FIREBASE EA DATA
+    // READ FIREBASE DATA
     // =========================
 
     private void updateEAFromFirebase(
@@ -284,7 +301,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================
-    // SEND COMMAND TO MT5
+    // SEND COMMAND
     // =========================
 
     private void sendCommand(
@@ -720,10 +737,6 @@ public class MainActivity extends Activity {
                 )
         );
 
-        // =========================
-        // ADD EA CLICK
-        // =========================
-
         addEA.setOnClickListener(
                 new View.OnClickListener() {
 
@@ -735,10 +748,6 @@ public class MainActivity extends Activity {
                 }
         );
 
-        // =========================
-        // STOP ALL
-        // =========================
-
         stopAll.setOnClickListener(
                 new View.OnClickListener() {
 
@@ -746,7 +755,6 @@ public class MainActivity extends Activity {
                     public void onClick(View v) {
 
                         for (EAItem ea : eaList) {
-
                             ea.running = false;
                         }
 
@@ -765,7 +773,319 @@ public class MainActivity extends Activity {
 
         refreshEAList();
 
+        // =========================
+        // AI CHART SCANNER
+        // =========================
+
+        createAIChartScanner(root);
+
         setContentView(scroll);
+    }
+
+    // =========================
+    // AI CHART SCANNER
+    // =========================
+
+    private void createAIChartScanner(
+            LinearLayout root
+    ) {
+
+        LinearLayout aiCard =
+                card();
+
+        aiCard.addView(
+                heading(
+                        "🤖 AI CHART SCANNER"
+                )
+        );
+
+        aiCard.addView(
+                text(
+                        "Upload an MT5 chart screenshot for AI analysis.",
+                        12,
+                        MUTED
+                )
+        );
+
+        // Chart preview
+
+        chartPreview =
+                new ImageView(this);
+
+        chartPreview.setScaleType(
+                ImageView.ScaleType.CENTER_CROP
+        );
+
+        GradientDrawable previewBackground =
+                new GradientDrawable();
+
+        previewBackground.setColor(
+                Color.rgb(10, 14, 20)
+        );
+
+        previewBackground.setCornerRadius(
+                18
+        );
+
+        chartPreview.setBackground(
+                previewBackground
+        );
+
+        chartPreview.setImageResource(
+                android.R.drawable.ic_menu_gallery
+        );
+
+        LinearLayout.LayoutParams imageParams =
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        430
+                );
+
+        imageParams.setMargins(
+                0,
+                15,
+                0,
+                12
+        );
+
+        aiCard.addView(
+                chartPreview,
+                imageParams
+        );
+
+        // Status
+
+        chartStatus =
+                text(
+                        "WAITING FOR CHART",
+                        13,
+                        GOLD
+                );
+
+        chartStatus.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
+
+        aiCard.addView(chartStatus);
+
+        // Upload button
+
+        Button upload =
+                button(
+                        "📷  UPLOAD MT5 CHART"
+                );
+
+        upload.setTextSize(15);
+
+        aiCard.addView(
+                upload,
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        62
+                )
+        );
+
+        // Analyze button
+
+        Button analyze =
+                button(
+                        "🤖  ANALYZE CHART"
+                );
+
+        analyze.setTextSize(15);
+        analyze.setTextColor(GREEN);
+
+        aiCard.addView(
+                analyze,
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        62
+                )
+        );
+
+        // AI result
+
+        aiResult =
+                text(
+                        "AI ANALYSIS\n\n" +
+                        "Upload an MT5 screenshot to begin.",
+                        14,
+                        WHITE
+                );
+
+        aiResult.setPadding(
+                0,
+                18,
+                0,
+                5
+        );
+
+        aiCard.addView(aiResult);
+
+        // Upload click
+
+        upload.setOnClickListener(
+                new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+
+                        openChartPicker();
+                    }
+                }
+        );
+
+        // Analyze click
+
+        analyze.setOnClickListener(
+                new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+
+                        analyzeChart();
+                    }
+                }
+        );
+
+        root.addView(aiCard);
+    }
+
+    // =========================
+    // OPEN IMAGE PICKER
+    // =========================
+
+    private void openChartPicker() {
+
+        Intent intent =
+                new Intent(
+                        Intent.ACTION_PICK,
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                );
+
+        startActivityForResult(
+                intent,
+                PICK_CHART
+        );
+    }
+
+    // =========================
+    // RECEIVE IMAGE
+    // =========================
+
+    @Override
+    protected void onActivityResult(
+            int requestCode,
+            int resultCode,
+            Intent data
+    ) {
+
+        super.onActivityResult(
+                requestCode,
+                resultCode,
+                data
+        );
+
+        if (
+                requestCode == PICK_CHART &&
+                resultCode == RESULT_OK &&
+                data != null
+        ) {
+
+            selectedChartUri =
+                    data.getData();
+
+            try {
+
+                Bitmap bitmap =
+                        MediaStore.Images.Media.getBitmap(
+                                getContentResolver(),
+                                selectedChartUri
+                        );
+
+                chartPreview.setImageBitmap(
+                        bitmap
+                );
+
+                chartStatus.setText(
+                        "● CHART LOADED — READY FOR AI"
+                );
+
+                chartStatus.setTextColor(
+                        GREEN
+                );
+
+                aiResult.setText(
+                        "AI ANALYSIS\n\n" +
+                        "Chart loaded successfully.\n" +
+                        "Press ANALYZE CHART to continue."
+                );
+
+            } catch (Exception e) {
+
+                Toast.makeText(
+                        this,
+                        "Could not load chart",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+        }
+    }
+
+    // =========================
+    // ANALYZE CHART
+    // =========================
+
+    private void analyzeChart() {
+
+        if (selectedChartUri == null) {
+
+            Toast.makeText(
+                    this,
+                    "Upload an MT5 chart first",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+            return;
+        }
+
+        chartStatus.setText(
+                "● AI ANALYSIS READY"
+        );
+
+        chartStatus.setTextColor(
+                BLUE
+        );
+
+        aiResult.setText(
+                "AI MARKET ANALYSIS\n\n" +
+
+                "TREND        WAITING\n" +
+                "MOMENTUM     WAITING\n" +
+                "STRUCTURE    WAITING\n" +
+                "SUPPORT      WAITING\n" +
+                "RESISTANCE   WAITING\n" +
+                "CONFIDENCE   —\n\n" +
+
+                "SIGNAL\n" +
+                "WAIT\n\n" +
+
+                "AI SUMMARY\n" +
+                "The chart has been loaded. " +
+                "The live AI vision service " +
+                "will be connected in the next " +
+                "MoneyPrinter AI layer.\n\n" +
+
+                "⚠️ No trading decision has been " +
+                "generated yet."
+        );
+
+        Toast.makeText(
+                this,
+                "Chart prepared for AI analysis",
+                Toast.LENGTH_SHORT
+        ).show();
     }
 
     // =========================
@@ -838,13 +1158,8 @@ public class MainActivity extends Activity {
         GradientDrawable background =
                 new GradientDrawable();
 
-        background.setColor(
-                Color.rgb(25, 32, 42)
-        );
-
-        background.setCornerRadius(
-                18
-        );
+        background.setColor(INNER);
+        background.setCornerRadius(18);
 
         item.setBackground(
                 background
@@ -863,13 +1178,7 @@ public class MainActivity extends Activity {
                 7
         );
 
-        item.setLayoutParams(
-                itemParams
-        );
-
-        // =========================
-        // NAME
-        // =========================
+        item.setLayoutParams(itemParams);
 
         TextView name =
                 text(
@@ -884,10 +1193,6 @@ public class MainActivity extends Activity {
         );
 
         item.addView(name);
-
-        // =========================
-        // STATUS
-        // =========================
 
         String statusText;
 
@@ -915,10 +1220,6 @@ public class MainActivity extends Activity {
 
         item.addView(state);
 
-        // =========================
-        // LIVE DATA
-        // =========================
-
         item.addView(
                 text(
                         "SYMBOL    " + ea.symbol +
@@ -932,10 +1233,6 @@ public class MainActivity extends Activity {
                 )
         );
 
-        // =========================
-        // MODE ROW
-        // =========================
-
         LinearLayout modeRow =
                 new LinearLayout(this);
 
@@ -944,14 +1241,10 @@ public class MainActivity extends Activity {
         );
 
         Button scalp =
-                button(
-                        "SCALP"
-                );
+                button("SCALP");
 
         Button swing =
-                button(
-                        "SWING"
-                );
+                button("SWING");
 
         modeRow.addView(
                 scalp,
@@ -973,10 +1266,6 @@ public class MainActivity extends Activity {
 
         item.addView(modeRow);
 
-        // =========================
-        // CONTROL ROW
-        // =========================
-
         LinearLayout controls =
                 new LinearLayout(this);
 
@@ -985,14 +1274,10 @@ public class MainActivity extends Activity {
         );
 
         Button start =
-                button(
-                        "START"
-                );
+                button("START");
 
         Button stop =
-                button(
-                        "STOP"
-                );
+                button("STOP");
 
         controls.addView(
                 start,
@@ -1014,10 +1299,6 @@ public class MainActivity extends Activity {
 
         item.addView(controls);
 
-        // =========================
-        // SCALP
-        // =========================
-
         scalp.setOnClickListener(
                 new View.OnClickListener() {
 
@@ -1034,10 +1315,6 @@ public class MainActivity extends Activity {
                     }
                 }
         );
-
-        // =========================
-        // SWING
-        // =========================
 
         swing.setOnClickListener(
                 new View.OnClickListener() {
@@ -1056,10 +1333,6 @@ public class MainActivity extends Activity {
                 }
         );
 
-        // =========================
-        // START
-        // =========================
-
         start.setOnClickListener(
                 new View.OnClickListener() {
 
@@ -1076,10 +1349,6 @@ public class MainActivity extends Activity {
                     }
                 }
         );
-
-        // =========================
-        // STOP
-        // =========================
 
         stop.setOnClickListener(
                 new View.OnClickListener() {
@@ -1126,36 +1395,21 @@ public class MainActivity extends Activity {
                 20
         );
 
-        TextView title =
-                heading(
-                        "ADD NEW EA"
-                );
-
-        layout.addView(title);
+        layout.addView(
+                heading("ADD NEW EA")
+        );
 
         final EditText nameInput =
                 new EditText(this);
 
-        nameInput.setHint(
-                "EA name"
-        );
+        nameInput.setHint("EA name");
+        nameInput.setTextColor(WHITE);
+        nameInput.setHintTextColor(MUTED);
 
-        nameInput.setTextColor(
-                WHITE
-        );
-
-        nameInput.setHintTextColor(
-                MUTED
-        );
-
-        layout.addView(
-                nameInput
-        );
+        layout.addView(nameInput);
 
         Button add =
-                button(
-                        "ADD EA"
-                );
+                button("ADD EA");
 
         layout.addView(add);
 
@@ -1206,7 +1460,6 @@ public class MainActivity extends Activity {
         );
 
         dialog.setView(layout);
-
         dialog.show();
     }
     }
