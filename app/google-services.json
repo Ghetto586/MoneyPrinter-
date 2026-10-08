@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "884824752724",
+    "firebase_url": "https://moneyprinter-638b5-default-rtdb.firebaseio.com",
+    "project_id": "moneyprinter-638b5",
+    "storage_bucket": "moneyprinter-638b5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:884824752724:android:05dee4d6a39a63c08d23c1",
+        "android_client_info": {
+          "package_name": "com.moneyprinter.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNy-JqKuPrZjW5tknRuoNLDWtfMcUghBQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
