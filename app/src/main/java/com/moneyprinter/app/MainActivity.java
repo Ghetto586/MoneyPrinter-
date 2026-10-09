@@ -35,11 +35,8 @@ import com.google.firebase.database.ValueEventListener;
 
 import com.google.firebase.ai.FirebaseAI;
 import com.google.firebase.ai.GenerativeModel;
-
-// FIXED FIREBASE AI IMPORTS
 import com.google.firebase.ai.type.GenerativeBackend;
 import com.google.firebase.ai.java.GenerativeModelFutures;
-
 import com.google.firebase.ai.type.Content;
 import com.google.firebase.ai.type.GenerateContentResponse;
 
@@ -54,8 +51,6 @@ import java.util.Map;
 
 public class MainActivity extends Activity {
 
-    // MONEYPRINTER COLORS
-
     private final int BG = Color.rgb(7, 10, 15);
     private final int CARD = Color.rgb(17, 22, 30);
     private final int INNER = Color.rgb(25, 32, 42);
@@ -66,34 +61,23 @@ public class MainActivity extends Activity {
     private final int GOLD = Color.rgb(255, 193, 7);
     private final int BLUE = Color.rgb(80, 150, 255);
 
-    // FIREBASE / EA
-
-    private static final String EA_ID =
-            "moneymaker_autoscalp_01";
-
+    private static final String EA_ID = "moneymaker_autoscalp_01";
     private DatabaseReference eaDatabase;
 
-    // EA MANAGER
-
-    private final ArrayList<EAItem> eaList =
-            new ArrayList<>();
+    private final ArrayList<EAItem> eaList = new ArrayList<>();
 
     private LinearLayout eaContainer;
     private TextView hostStatus;
     private TextView totalEA;
     private TextView runningEA;
 
-    // AI CHART SCANNER
-
     private ImageView chartPreview;
     private TextView chartStatus;
     private TextView aiResult;
+    private Button analyzeButton;
 
     private Uri selectedChartUri;
-
     private static final int PICK_CHART = 501;
-
-    // EA MODEL
 
     private static class EAItem {
         String id;
@@ -108,20 +92,13 @@ public class MainActivity extends Activity {
         String floating = "—";
         String trades = "—";
 
-        EAItem(
-                String id,
-                String name,
-                String mode,
-                boolean running
-        ) {
+        EAItem(String id, String name, String mode, boolean running) {
             this.id = id;
             this.name = name;
             this.mode = mode;
             this.running = running;
         }
     }
-
-    // ACTIVITY / FIREBASE INITIALIZATION
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,22 +109,18 @@ public class MainActivity extends Activity {
 
         FirebaseApp.initializeApp(this);
 
-        // DEVELOPMENT ONLY: use the debug provider while testing.
-        FirebaseAppCheck appCheck =
-                FirebaseAppCheck.getInstance();
-
+        // Development testing only. Do not ship the debug provider in production.
+        FirebaseAppCheck appCheck = FirebaseAppCheck.getInstance();
         appCheck.installAppCheckProviderFactory(
                 DebugAppCheckProviderFactory.getInstance()
         );
 
-        eaList.add(
-                new EAItem(
-                        EA_ID,
-                        "MoneyMaker AutoScalp",
-                        "SCALP",
-                        false
-                )
-        );
+        eaList.add(new EAItem(
+                EA_ID,
+                "MoneyMaker AutoScalp",
+                "SCALP",
+                false
+        ));
 
         createDashboard();
         connectFirebase();
@@ -157,94 +130,58 @@ public class MainActivity extends Activity {
 
     private void connectFirebase() {
         try {
-            FirebaseDatabase database =
-                    FirebaseDatabase.getInstance();
+            FirebaseDatabase database = FirebaseDatabase.getInstance();
 
-            eaDatabase = database
-                    .getReference("eas")
+            eaDatabase = database.getReference("eas")
                     .child(EA_ID)
                     .child("status");
 
-            eaDatabase.addValueEventListener(
-                    new ValueEventListener() {
-                        @Override
-                        public void onDataChange(
-                                DataSnapshot snapshot
-                        ) {
-                            if (!snapshot.exists()) {
-                                hostStatus.setText(
-                                        "● WAITING FOR MT5"
-                                );
-                                hostStatus.setTextColor(GOLD);
-                                return;
-                            }
-
-                            updateEAFromFirebase(snapshot);
-
-                            hostStatus.setText(
-                                    "● MT5 HOST CONNECTED"
-                            );
-                            hostStatus.setTextColor(GREEN);
-
-                            refreshEAList();
-                        }
-
-                        @Override
-                        public void onCancelled(
-                                DatabaseError error
-                        ) {
-                            hostStatus.setText(
-                                    "● FIREBASE ERROR"
-                            );
-                            hostStatus.setTextColor(RED);
-
-                            Log.e(
-                                    "MoneyPrinter",
-                                    "Firebase listener cancelled",
-                                    error.toException()
-                            );
-                        }
+            eaDatabase.addValueEventListener(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot snapshot) {
+                    if (!snapshot.exists()) {
+                        hostStatus.setText("● WAITING FOR MT5");
+                        hostStatus.setTextColor(GOLD);
+                        return;
                     }
-            );
+
+                    updateEAFromFirebase(snapshot);
+
+                    hostStatus.setText("● MT5 HOST CONNECTED");
+                    hostStatus.setTextColor(GREEN);
+                    refreshEAList();
+                }
+
+                @Override
+                public void onCancelled(DatabaseError error) {
+                    hostStatus.setText("● FIREBASE ERROR");
+                    hostStatus.setTextColor(RED);
+
+                    Log.e(
+                            "MoneyPrinter",
+                            "Firebase listener cancelled",
+                            error.toException()
+                    );
+                }
+            });
         } catch (Exception e) {
-            hostStatus.setText(
-                    "● FIREBASE NOT CONNECTED"
-            );
+            hostStatus.setText("● FIREBASE NOT CONNECTED");
             hostStatus.setTextColor(RED);
 
-            Log.e(
-                    "MoneyPrinter",
-                    "Firebase setup failed",
-                    e
-            );
+            Log.e("MoneyPrinter", "Firebase setup failed", e);
         }
     }
 
-    // READ EA DATA
-
-    private void updateEAFromFirebase(
-            DataSnapshot snapshot
-    ) {
-        if (eaList.isEmpty()) {
-            return;
-        }
+    private void updateEAFromFirebase(DataSnapshot snapshot) {
+        if (eaList.isEmpty()) return;
 
         EAItem ea = eaList.get(0);
 
-        String name = snapshot.child("ea_name")
-                .getValue(String.class);
-
-        String status = snapshot.child("status")
-                .getValue(String.class);
-
-        String mode = snapshot.child("mode")
-                .getValue(String.class);
-
-        String symbol = snapshot.child("symbol")
-                .getValue(String.class);
-
-        String signal = snapshot.child("signal")
-                .getValue(String.class);
+        String name = snapshot.child("ea_name").getValue(String.class);
+        String status = snapshot.child("status").getValue(String.class);
+        String mode = snapshot.child("mode").getValue(String.class);
+        String symbol = snapshot.child("symbol").getValue(String.class);
+        String signal = snapshot.child("signal").getValue(String.class);
 
         if (name != null) ea.name = name;
 
@@ -261,24 +198,14 @@ public class MainActivity extends Activity {
         Object floating = snapshot.child("floating_pl").getValue();
         Object trades = snapshot.child("open_trades").getValue();
 
-        if (balance != null) {
-            ea.balance = String.valueOf(balance);
-        }
-
-        if (equity != null) {
-            ea.equity = String.valueOf(equity);
-        }
-
-        if (floating != null) {
-            ea.floating = String.valueOf(floating);
-        }
-
-        if (trades != null) {
-            ea.trades = String.valueOf(trades);
-        }
+        if (balance != null) ea.balance = String.valueOf(balance);
+        if (equity != null) ea.equity = String.valueOf(equity);
+        if (floating != null) ea.floating = String.valueOf(floating);
+        if (trades != null) ea.trades = String.valueOf(trades);
     }
 
     // SEND EA COMMAND
+    // A successful Firebase write confirms only that the command was written.
 
     private void sendCommand(String command) {
         if (eaDatabase == null) {
@@ -290,11 +217,10 @@ public class MainActivity extends Activity {
             return;
         }
 
-        DatabaseReference commandRef =
-                FirebaseDatabase.getInstance()
-                        .getReference("eas")
-                        .child(EA_ID)
-                        .child("command");
+        DatabaseReference commandRef = FirebaseDatabase.getInstance()
+                .getReference("eas")
+                .child(EA_ID)
+                .child("command");
 
         Map<String, Object> data = new HashMap<>();
         data.put("command", command);
@@ -304,21 +230,18 @@ public class MainActivity extends Activity {
                 .addOnSuccessListener(unused ->
                         Toast.makeText(
                                 MainActivity.this,
-                                command + " command sent",
+                                command + " command sent to Firebase",
                                 Toast.LENGTH_SHORT
                         ).show()
                 )
                 .addOnFailureListener(error ->
                         Toast.makeText(
                                 MainActivity.this,
-                                "Command failed: " +
-                                        error.getMessage(),
+                                "Command failed: " + error.getMessage(),
                                 Toast.LENGTH_LONG
                         ).show()
                 );
     }
-
-    // SEND SCALP / SWING MODE
 
     private void sendMode(String mode) {
         if (eaDatabase == null) {
@@ -330,11 +253,10 @@ public class MainActivity extends Activity {
             return;
         }
 
-        DatabaseReference commandRef =
-                FirebaseDatabase.getInstance()
-                        .getReference("eas")
-                        .child(EA_ID)
-                        .child("command");
+        DatabaseReference commandRef = FirebaseDatabase.getInstance()
+                .getReference("eas")
+                .child(EA_ID)
+                .child("command");
 
         Map<String, Object> data = new HashMap<>();
         data.put("command", "MODE");
@@ -342,23 +264,25 @@ public class MainActivity extends Activity {
         data.put("time", System.currentTimeMillis());
 
         commandRef.setValue(data)
+                .addOnSuccessListener(unused ->
+                        Toast.makeText(
+                                MainActivity.this,
+                                mode + " mode command sent",
+                                Toast.LENGTH_SHORT
+                        ).show()
+                )
                 .addOnFailureListener(error ->
                         Toast.makeText(
                                 MainActivity.this,
-                                "Mode update failed: " +
-                                        error.getMessage(),
+                                "Mode update failed: " + error.getMessage(),
                                 Toast.LENGTH_SHORT
                         ).show()
                 );
     }
 
-    // TEXT HELPERS
+    // TEXT AND CARD HELPERS
 
-    private TextView text(
-            String value,
-            float size,
-            int color
-    ) {
+    private TextView text(String value, float size, int color) {
         TextView view = new TextView(this);
         view.setText(value);
         view.setTextSize(size);
@@ -369,14 +293,9 @@ public class MainActivity extends Activity {
 
     private TextView heading(String value) {
         TextView view = text(value, 17, WHITE);
-        view.setTypeface(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-        );
+        view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         return view;
     }
-
-    // CARD HELPER
 
     private LinearLayout card() {
         LinearLayout layout = new LinearLayout(this);
@@ -388,29 +307,22 @@ public class MainActivity extends Activity {
         background.setCornerRadius(22);
         layout.setBackground(background);
 
-        LinearLayout.LayoutParams params =
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                );
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
 
         params.setMargins(0, 8, 0, 8);
         layout.setLayoutParams(params);
-
         return layout;
     }
-
-    // BUTTON HELPER
 
     private Button button(String value) {
         Button button = new Button(this);
         button.setText(value);
         button.setTextSize(13);
         button.setTextColor(WHITE);
-        button.setTypeface(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-        );
+        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         button.setAllCaps(false);
         button.setGravity(Gravity.CENTER);
         return button;
@@ -425,26 +337,17 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(18, 24, 18, 25);
-
         scroll.addView(root);
-
-        // HEADER
 
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
 
         TextView money = text("MONEY", 24, WHITE);
-        money.setTypeface(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-        );
+        money.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
         TextView printer = text("PRINTER", 24, GREEN);
-        printer.setTypeface(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-        );
+        printer.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
         header.addView(money);
         header.addView(printer);
@@ -452,46 +355,25 @@ public class MainActivity extends Activity {
         TextView settings = text("⚙", 25, MUTED);
         settings.setGravity(Gravity.RIGHT);
 
-        header.addView(
-                settings,
-                new LinearLayout.LayoutParams(
-                        0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        1
-                )
-        );
+        header.addView(settings, new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1
+        ));
 
         root.addView(header);
+        root.addView(text("MULTI-EA HOST  •  MT5", 12, MUTED));
 
-        root.addView(
-                text("MULTI-EA HOST  •  MT5", 12, MUTED)
-        );
-
-        // HOST STATUS
-
-        hostStatus = text(
-                "● CONNECTING TO FIREBASE...",
-                15,
-                GOLD
-        );
-
-        hostStatus.setTypeface(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-        );
-
+        hostStatus = text("● CONNECTING TO FIREBASE...", 15, GOLD);
+        hostStatus.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         hostStatus.setPadding(0, 18, 0, 5);
         root.addView(hostStatus);
 
-        root.addView(
-                text(
-                        "Live MT5 data appears when the EA connects.",
-                        12,
-                        MUTED
-                )
-        );
-
-        // EA SUMMARY
+        root.addView(text(
+                "Live MT5 data appears when the EA connects.",
+                12,
+                MUTED
+        ));
 
         LinearLayout summary = card();
         summary.addView(heading("EA MANAGER"));
@@ -503,62 +385,40 @@ public class MainActivity extends Activity {
         summary.addView(runningEA);
         root.addView(summary);
 
-        // EA LIST
-
         LinearLayout listCard = card();
         listCard.addView(heading("YOUR EAs"));
 
         eaContainer = new LinearLayout(this);
         eaContainer.setOrientation(LinearLayout.VERTICAL);
-
         listCard.addView(eaContainer);
         root.addView(listCard);
-
-        // ADD EA
 
         Button addEA = button("+ ADD EA");
         addEA.setTextSize(15);
 
-        root.addView(
-                addEA,
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        62
-                )
-        );
+        root.addView(addEA, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                62
+        ));
 
-        addEA.setOnClickListener(
-                v -> showAddEADialog()
-        );
-
-        // STOP ALL
+        addEA.setOnClickListener(v -> showAddEADialog());
 
         Button stopAll = button("STOP ALL EAs");
         stopAll.setTextColor(RED);
 
-        root.addView(
-                stopAll,
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        62
-                )
-        );
+        root.addView(stopAll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                62
+        ));
 
         stopAll.setOnClickListener(v -> {
-            for (EAItem ea : eaList) {
-                ea.running = false;
-            }
-
             sendCommand("STOP");
+            for (EAItem ea : eaList) ea.running = false;
             refreshEAList();
         });
 
         refreshEAList();
-
-        // AI SCANNER
-
         createAIChartScanner(root);
-
         setContentView(scroll);
     }
 
@@ -567,83 +427,53 @@ public class MainActivity extends Activity {
     private void createAIChartScanner(LinearLayout root) {
         LinearLayout aiCard = card();
 
-        aiCard.addView(
-                heading("🤖 AI CHART SCANNER")
-        );
-
-        aiCard.addView(
-                text(
-                        "Upload an MT5 chart screenshot for AI analysis.",
-                        12,
-                        MUTED
-                )
-        );
+        aiCard.addView(heading("🤖 AI CHART SCANNER"));
+        aiCard.addView(text(
+                "Upload an MT5 chart for a BUY, SELL or WAIT assessment.",
+                12,
+                MUTED
+        ));
 
         chartPreview = new ImageView(this);
-        chartPreview.setScaleType(
-                ImageView.ScaleType.FIT_CENTER
-        );
+        chartPreview.setScaleType(ImageView.ScaleType.FIT_CENTER);
 
-        GradientDrawable previewBackground =
-                new GradientDrawable();
-
-        previewBackground.setColor(
-                Color.rgb(10, 14, 20)
-        );
+        GradientDrawable previewBackground = new GradientDrawable();
+        previewBackground.setColor(Color.rgb(10, 14, 20));
         previewBackground.setCornerRadius(18);
-
         chartPreview.setBackground(previewBackground);
-        chartPreview.setImageResource(
-                android.R.drawable.ic_menu_gallery
-        );
+        chartPreview.setImageResource(android.R.drawable.ic_menu_gallery);
 
-        LinearLayout.LayoutParams imageParams =
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        430
-                );
+        LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                430
+        );
 
         imageParams.setMargins(0, 15, 0, 12);
         aiCard.addView(chartPreview, imageParams);
 
-        chartStatus = text(
-                "WAITING FOR CHART",
-                13,
-                GOLD
-        );
-
-        chartStatus.setTypeface(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-        );
-
+        chartStatus = text("WAITING FOR CHART", 13, GOLD);
+        chartStatus.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         aiCard.addView(chartStatus);
 
         Button upload = button("📷 UPLOAD MT5 CHART");
         upload.setTextSize(15);
 
-        aiCard.addView(
-                upload,
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        62
-                )
-        );
+        aiCard.addView(upload, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                62
+        ));
 
-        Button analyze = button("🤖 ANALYZE CHART");
-        analyze.setTextSize(15);
-        analyze.setTextColor(GREEN);
+        analyzeButton = button("🤖 ANALYZE CHART");
+        analyzeButton.setTextSize(15);
+        analyzeButton.setTextColor(GREEN);
 
-        aiCard.addView(
-                analyze,
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        62
-                )
-        );
+        aiCard.addView(analyzeButton, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                62
+        ));
 
         aiResult = text(
-                "AI ANALYSIS\n\nUpload an MT5 screenshot to begin.",
+                "MONEYPRINTER AI\n\nUpload a chart screenshot to begin.",
                 14,
                 WHITE
         );
@@ -651,13 +481,26 @@ public class MainActivity extends Activity {
         aiResult.setPadding(0, 18, 0, 5);
         aiCard.addView(aiResult);
 
-        upload.setOnClickListener(
-                v -> openChartPicker()
-        );
+        upload.setOnClickListener(v -> openChartPicker());
+        analyzeButton.setOnClickListener(v -> analyzeChart());
 
-        analyze.setOnClickListener(
-                v -> analyzeChart()
-        );
+        // This control intentionally does not execute trades.
+        // Actual order execution requires a verified MT5 bridge.
+        Button execute = button("EXECUTE TRADE — MT5 BRIDGE REQUIRED");
+        execute.setTextColor(MUTED);
+        execute.setEnabled(false);
+
+        aiCard.addView(execute, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                58
+        ));
+
+        aiCard.addView(text(
+                "AI analysis is informational. Verify live prices and risk " +
+                "before making any trading decision.",
+                11,
+                MUTED
+        ));
 
         root.addView(aiCard);
     }
@@ -665,9 +508,7 @@ public class MainActivity extends Activity {
     // PICK A CHART IMAGE
 
     private void openChartPicker() {
-        Intent intent =
-                new Intent(Intent.ACTION_OPEN_DOCUMENT);
-
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.setType("image/*");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
 
@@ -682,19 +523,13 @@ public class MainActivity extends Activity {
         }
     }
 
-    // RECEIVE SELECTED IMAGE
-
     @Override
     protected void onActivityResult(
             int requestCode,
             int resultCode,
             Intent data
     ) {
-        super.onActivityResult(
-                requestCode,
-                resultCode,
-                data
-        );
+        super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode != PICK_CHART ||
                 resultCode != RESULT_OK ||
@@ -706,23 +541,15 @@ public class MainActivity extends Activity {
         selectedChartUri = data.getData();
 
         try {
-            BitmapFactory.Options options =
-                    new BitmapFactory.Options();
-
+            BitmapFactory.Options options = new BitmapFactory.Options();
             options.inJustDecodeBounds = true;
 
             InputStream boundsInput =
-                    getContentResolver().openInputStream(
-                            selectedChartUri
-                    );
+                    getContentResolver().openInputStream(selectedChartUri);
 
             if (boundsInput != null) {
                 try {
-                    BitmapFactory.decodeStream(
-                            boundsInput,
-                            null,
-                            options
-                    );
+                    BitmapFactory.decodeStream(boundsInput, null, options);
                 } finally {
                     boundsInput.close();
                 }
@@ -732,14 +559,10 @@ public class MainActivity extends Activity {
             options.inSampleSize = 2;
 
             InputStream imageInput =
-                    getContentResolver().openInputStream(
-                            selectedChartUri
-                    );
+                    getContentResolver().openInputStream(selectedChartUri);
 
             if (imageInput == null) {
-                throw new Exception(
-                        "Cannot open selected image"
-                );
+                throw new Exception("Cannot open selected image");
             }
 
             Bitmap bitmap;
@@ -759,24 +582,17 @@ public class MainActivity extends Activity {
             }
 
             chartPreview.setImageBitmap(bitmap);
-
-            chartStatus.setText(
-                    "● CHART LOADED — READY FOR AI"
-            );
+            chartStatus.setText("● CHART LOADED — READY FOR AI");
             chartStatus.setTextColor(GREEN);
 
             aiResult.setText(
-                    "AI ANALYSIS\n\n" +
+                    "MONEYPRINTER AI\n\n" +
                     "Chart loaded successfully.\n" +
                     "Press ANALYZE CHART to begin."
             );
 
         } catch (Exception e) {
-            Log.e(
-                    "MoneyPrinterAI",
-                    "Image preview failed",
-                    e
-            );
+            Log.e("MoneyPrinterAI", "Image preview failed", e);
 
             Toast.makeText(
                     this,
@@ -786,7 +602,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    // REAL AI CHART ANALYSIS
+    // AI CHART ANALYSIS: REQUEST A CLEAR BUY / SELL / WAIT DECISION
 
     private void analyzeChart() {
         if (selectedChartUri == null) {
@@ -798,14 +614,13 @@ public class MainActivity extends Activity {
             return;
         }
 
-        chartStatus.setText(
-                "● PREPARING AI ANALYSIS..."
-        );
+        analyzeButton.setEnabled(false);
+        chartStatus.setText("● PREPARING AI ANALYSIS...");
         chartStatus.setTextColor(BLUE);
 
         aiResult.setText(
                 "MONEYPRINTER AI\n\n" +
-                "Preparing your screenshot for analysis..."
+                "Analyzing the chart and evaluating BUY / SELL / WAIT..."
         );
 
         final Uri chartUri = selectedChartUri;
@@ -815,14 +630,10 @@ public class MainActivity extends Activity {
 
             try {
                 InputStream input =
-                        getContentResolver().openInputStream(
-                                chartUri
-                        );
+                        getContentResolver().openInputStream(chartUri);
 
                 if (input == null) {
-                    throw new Exception(
-                            "Could not open chart image"
-                    );
+                    throw new Exception("Could not open chart image");
                 }
 
                 try {
@@ -844,14 +655,11 @@ public class MainActivity extends Activity {
                     throw new Exception("Invalid chart image");
                 }
 
-                // Limit image dimensions to help control memory use.
                 int maxDimension = 1280;
                 int width = bitmap.getWidth();
                 int height = bitmap.getHeight();
 
-                if (width > maxDimension ||
-                        height > maxDimension) {
-
+                if (width > maxDimension || height > maxDimension) {
                     float scale = Math.min(
                             (float) maxDimension / width,
                             (float) maxDimension / height
@@ -859,14 +667,8 @@ public class MainActivity extends Activity {
 
                     Bitmap resized = Bitmap.createScaledBitmap(
                             bitmap,
-                            Math.max(
-                                    1,
-                                    Math.round(width * scale)
-                            ),
-                            Math.max(
-                                    1,
-                                    Math.round(height * scale)
-                            ),
+                            Math.max(1, Math.round(width * scale)),
+                            Math.max(1, Math.round(height * scale)),
                             true
                     );
 
@@ -881,28 +683,44 @@ public class MainActivity extends Activity {
                 Content prompt = new Content.Builder()
                         .addImage(chartBitmap)
                         .addText(
-                                "You are MoneyPrinter AI Chart Scanner. " +
-                                "Analyze the provided trading chart screenshot. " +
-                                "Describe the visible trend, momentum, market " +
-                                "structure, support and resistance, and possible " +
-                                "bullish or bearish setups. Identify the symbol " +
-                                "and timeframe only if clearly readable. Do not " +
-                                "invent prices or indicators. Explain uncertainty " +
-                                "and distinguish observations from possibilities. " +
-                                "Do not promise profit or execute trades. Finish " +
-                                "with a cautious educational summary and explain " +
-                                "what confirmation may be needed before a trade."
+                                "You are MoneyPrinter AI, a cautious trading " +
+                                "chart analysis assistant. Analyze the uploaded " +
+                                "chart screenshot and use the exact headings below.\n\n" +
+
+                                "DECISION: BUY, SELL, or WAIT\n" +
+                                "SYMBOL: State only if clearly readable; " +
+                                "otherwise Unknown\n" +
+                                "TIMEFRAME: State only if clearly readable; " +
+                                "otherwise Unknown\n" +
+                                "CONFIDENCE: Low, Medium, or High, with a short " +
+                                "explanation\n" +
+                                "TREND: Bullish, Bearish, Sideways, or Unclear\n" +
+                                "REASON: Explain the visible evidence\n" +
+                                "ENTRY: Give a price only if reliably readable " +
+                                "and justified; otherwise Unavailable\n" +
+                                "STOP-LOSS: Give a price only if reliably " +
+                                "justified; otherwise Unavailable\n" +
+                                "TAKE-PROFIT: Give a price only if reliably " +
+                                "justified; otherwise Unavailable\n" +
+                                "CONFIRMATION NEEDED: State what must happen " +
+                                "before entry\n" +
+                                "RISK WARNING: State the main uncertainty or risk\n\n" +
+
+                                "Choose WAIT if the chart is unclear, contradictory, " +
+                                "missing essential information, or lacks a " +
+                                "convincing setup. Do not invent prices, indicators, " +
+                                "symbol names, or timeframes. Confidence describes " +
+                                "your visual assessment, not the probability of " +
+                                "profit. A screenshot may be delayed and does not " +
+                                "provide reliable live prices by itself. Never " +
+                                "claim that a trade was executed. This analysis " +
+                                "must not trigger a trade. Use clear, concise language."
                         )
                         .build();
 
-                // CORRECTED FIREBASE AI INITIALIZATION
-
-                GenerativeModel ai =
-                        FirebaseAI.getInstance(
-                                GenerativeBackend.googleAI()
-                        ).generativeModel(
-                                "gemini-3.8-flash"
-                        );
+                GenerativeModel ai = FirebaseAI.getInstance(
+                        GenerativeBackend.googleAI()
+                ).generativeModel("gemini-3.8-flash");
 
                 GenerativeModelFutures model =
                         GenerativeModelFutures.from(ai);
@@ -914,9 +732,7 @@ public class MainActivity extends Activity {
                         response,
                         new FutureCallback<GenerateContentResponse>() {
                             @Override
-                            public void onSuccess(
-                                    GenerateContentResponse result
-                            ) {
+                            public void onSuccess(GenerateContentResponse result) {
                                 String resultText = result.getText();
 
                                 if (resultText == null ||
@@ -927,16 +743,17 @@ public class MainActivity extends Activity {
                                 }
 
                                 aiResult.setText(
-                                        "MONEYPRINTER AI ANALYSIS\n\n" +
+                                        "MONEYPRINTER AI — CHART DECISION\n\n" +
                                         resultText +
-                                        "\n\nIMPORTANT: AI can misread charts. " +
-                                        "Verify all levels and manage risk."
+                                        "\n\nIMPORTANT: This is visual chart " +
+                                        "analysis, not a guaranteed signal. " +
+                                        "Verify live prices and risk before acting. " +
+                                        "No trade has been executed."
                                 );
 
-                                chartStatus.setText(
-                                        "● AI ANALYSIS COMPLETE"
-                                );
+                                chartStatus.setText("● AI ANALYSIS COMPLETE");
                                 chartStatus.setTextColor(GREEN);
+                                analyzeButton.setEnabled(true);
 
                                 if (!chartBitmap.isRecycled()) {
                                     chartBitmap.recycle();
@@ -951,13 +768,11 @@ public class MainActivity extends Activity {
                                         error
                                 );
 
-                                chartStatus.setText(
-                                        "● AI REQUEST FAILED"
-                                );
+                                chartStatus.setText("● AI REQUEST FAILED");
                                 chartStatus.setTextColor(RED);
+                                analyzeButton.setEnabled(true);
 
-                                String message =
-                                        error.getLocalizedMessage();
+                                String message = error.getLocalizedMessage();
 
                                 aiResult.setText(
                                         "AI ANALYSIS FAILED\n\n" +
@@ -976,9 +791,7 @@ public class MainActivity extends Activity {
                                 }
                             }
                         },
-                        ContextCompat.getMainExecutor(
-                                MainActivity.this
-                        )
+                        ContextCompat.getMainExecutor(MainActivity.this)
                 );
 
             } catch (Exception error) {
@@ -993,10 +806,9 @@ public class MainActivity extends Activity {
                 }
 
                 runOnUiThread(() -> {
-                    chartStatus.setText(
-                            "● CHART ANALYSIS ERROR"
-                    );
+                    chartStatus.setText("● CHART ANALYSIS ERROR");
                     chartStatus.setTextColor(RED);
+                    analyzeButton.setEnabled(true);
 
                     aiResult.setText(
                             "Could not prepare the chart.\n\n" +
@@ -1014,9 +826,7 @@ public class MainActivity extends Activity {
     // REFRESH EA LIST
 
     private void refreshEAList() {
-        if (eaContainer == null) {
-            return;
-        }
+        if (eaContainer == null) return;
 
         eaContainer.removeAllViews();
 
@@ -1025,28 +835,18 @@ public class MainActivity extends Activity {
         for (int i = 0; i < eaList.size(); i++) {
             EAItem ea = eaList.get(i);
 
-            if (ea.running) {
-                runningCount++;
-            }
+            if (ea.running) runningCount++;
 
             createEACard(ea, i);
         }
 
-        totalEA.setText(
-                "TOTAL EAs: " + eaList.size()
-        );
-
-        runningEA.setText(
-                "RUNNING: " + runningCount
-        );
+        totalEA.setText("TOTAL EAs: " + eaList.size());
+        runningEA.setText("RUNNING: " + runningCount);
     }
 
     // EA CARD
 
-    private void createEACard(
-            final EAItem ea,
-            final int index
-    ) {
+    private void createEACard(final EAItem ea, final int index) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setPadding(16, 16, 16, 16);
@@ -1066,36 +866,29 @@ public class MainActivity extends Activity {
         item.setLayoutParams(itemParams);
 
         TextView name = text(ea.name, 17, WHITE);
-        name.setTypeface(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-        );
+        name.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         item.addView(name);
 
         String statusText = ea.running
                 ? "● RUNNING     " + ea.mode
                 : "● STOPPED     " + ea.mode;
 
-        TextView state = text(
+        item.addView(text(
                 statusText,
                 13,
                 ea.running ? GREEN : MUTED
-        );
+        ));
 
-        item.addView(state);
-
-        item.addView(
-                text(
-                        "SYMBOL    " + ea.symbol +
-                        "\nSIGNAL    " + ea.signal +
-                        "\nBALANCE   " + ea.balance +
-                        "\nEQUITY    " + ea.equity +
-                        "\nFLOATING  " + ea.floating +
-                        "\nTRADES    " + ea.trades,
-                        13,
-                        WHITE
-                )
-        );
+        item.addView(text(
+                "SYMBOL    " + ea.symbol +
+                "\nSIGNAL    " + ea.signal +
+                "\nBALANCE   " + ea.balance +
+                "\nEQUITY    " + ea.equity +
+                "\nFLOATING  " + ea.floating +
+                "\nTRADES    " + ea.trades,
+                13,
+                WHITE
+        ));
 
         LinearLayout modeRow = new LinearLayout(this);
         modeRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -1103,24 +896,8 @@ public class MainActivity extends Activity {
         Button scalp = button("SCALP");
         Button swing = button("SWING");
 
-        modeRow.addView(
-                scalp,
-                new LinearLayout.LayoutParams(
-                        0,
-                        55,
-                        1
-                )
-        );
-
-        modeRow.addView(
-                swing,
-                new LinearLayout.LayoutParams(
-                        0,
-                        55,
-                        1
-                )
-        );
-
+        modeRow.addView(scalp, new LinearLayout.LayoutParams(0, 55, 1));
+        modeRow.addView(swing, new LinearLayout.LayoutParams(0, 55, 1));
         item.addView(modeRow);
 
         LinearLayout controls = new LinearLayout(this);
@@ -1129,32 +906,14 @@ public class MainActivity extends Activity {
         Button start = button("START");
         Button stop = button("STOP");
 
-        controls.addView(
-                start,
-                new LinearLayout.LayoutParams(
-                        0,
-                        55,
-                        1
-                )
-        );
-
-        controls.addView(
-                stop,
-                new LinearLayout.LayoutParams(
-                        0,
-                        55,
-                        1
-                )
-        );
-
+        controls.addView(start, new LinearLayout.LayoutParams(0, 55, 1));
+        controls.addView(stop, new LinearLayout.LayoutParams(0, 55, 1));
         item.addView(controls);
 
         scalp.setOnClickListener(v -> {
             ea.mode = "SCALP";
 
-            if (ea.id.equals(EA_ID)) {
-                sendMode("SCALP");
-            }
+            if (ea.id.equals(EA_ID)) sendMode("SCALP");
 
             refreshEAList();
         });
@@ -1162,9 +921,7 @@ public class MainActivity extends Activity {
         swing.setOnClickListener(v -> {
             ea.mode = "SWING";
 
-            if (ea.id.equals(EA_ID)) {
-                sendMode("SWING");
-            }
+            if (ea.id.equals(EA_ID)) sendMode("SWING");
 
             refreshEAList();
         });
@@ -1181,6 +938,7 @@ public class MainActivity extends Activity {
                 return;
             }
 
+            // Display is optimistic; actual running status must come from MT5.
             ea.running = true;
             refreshEAList();
         });
@@ -1200,8 +958,7 @@ public class MainActivity extends Activity {
     // ADD EA DIALOG
 
     private void showAddEADialog() {
-        final AlertDialog dialog =
-                new AlertDialog.Builder(this).create();
+        final AlertDialog dialog = new AlertDialog.Builder(this).create();
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -1213,16 +970,13 @@ public class MainActivity extends Activity {
         nameInput.setHint("EA name");
         nameInput.setTextColor(WHITE);
         nameInput.setHintTextColor(MUTED);
-
         layout.addView(nameInput);
 
         Button add = button("ADD EA");
         layout.addView(add);
 
         add.setOnClickListener(v -> {
-            String name = nameInput.getText()
-                    .toString()
-                    .trim();
+            String name = nameInput.getText().toString().trim();
 
             if (name.isEmpty()) {
                 Toast.makeText(
@@ -1233,22 +987,20 @@ public class MainActivity extends Activity {
                 return;
             }
 
-            eaList.add(
-                    new EAItem(
-                            "local_" + System.currentTimeMillis(),
-                            name,
-                            "SCALP",
-                            false
-                    )
-            );
+            eaList.add(new EAItem(
+                    "local_" + System.currentTimeMillis(),
+                    name,
+                    "SCALP",
+                    false
+            ));
 
             refreshEAList();
             dialog.dismiss();
 
             Toast.makeText(
                     MainActivity.this,
-                    name + " added",
-                    Toast.LENGTH_SHORT
+                    name + " added locally; MT5 connection is not configured",
+                    Toast.LENGTH_LONG
             ).show();
         });
 
