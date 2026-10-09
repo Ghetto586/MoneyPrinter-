@@ -20,7 +20,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.content.Intent;
 import android.net.Uri;
-import android.provider.MediaStore;
 import android.util.Log;
 
 import androidx.core.content.ContextCompat;
@@ -33,12 +32,17 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
 import com.google.firebase.ai.FirebaseAI;
-import com.google.firebase.ai.GenerativeBackend;
 import com.google.firebase.ai.GenerativeModel;
-import com.google.firebase.ai.GenerativeModelFutures;
+
+// FIXED FIREBASE AI IMPORTS
+import com.google.firebase.ai.type.GenerativeBackend;
+import com.google.firebase.ai.java.GenerativeModelFutures;
+
 import com.google.firebase.ai.type.Content;
 import com.google.firebase.ai.type.GenerateContentResponse;
+
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -126,14 +130,12 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
 
-        // App Check must be configured before Firebase AI calls.
         FirebaseApp.initializeApp(this);
 
+        // DEVELOPMENT ONLY: use the debug provider while testing.
         FirebaseAppCheck appCheck =
                 FirebaseAppCheck.getInstance();
 
-        // DEVELOPMENT ONLY. Do not ship this provider
-        // in a production release.
         appCheck.installAppCheckProviderFactory(
                 DebugAppCheckProviderFactory.getInstance()
         );
@@ -195,6 +197,12 @@ public class MainActivity extends Activity {
                                     "● FIREBASE ERROR"
                             );
                             hostStatus.setTextColor(RED);
+
+                            Log.e(
+                                    "MoneyPrinter",
+                                    "Firebase listener cancelled",
+                                    error.toException()
+                            );
                         }
                     }
             );
@@ -204,7 +212,11 @@ public class MainActivity extends Activity {
             );
             hostStatus.setTextColor(RED);
 
-            Log.e("MoneyPrinter", "Firebase setup failed", e);
+            Log.e(
+                    "MoneyPrinter",
+                    "Firebase setup failed",
+                    e
+            );
         }
     }
 
@@ -249,10 +261,21 @@ public class MainActivity extends Activity {
         Object floating = snapshot.child("floating_pl").getValue();
         Object trades = snapshot.child("open_trades").getValue();
 
-        if (balance != null) ea.balance = String.valueOf(balance);
-        if (equity != null) ea.equity = String.valueOf(equity);
-        if (floating != null) ea.floating = String.valueOf(floating);
-        if (trades != null) ea.trades = String.valueOf(trades);
+        if (balance != null) {
+            ea.balance = String.valueOf(balance);
+        }
+
+        if (equity != null) {
+            ea.equity = String.valueOf(equity);
+        }
+
+        if (floating != null) {
+            ea.floating = String.valueOf(floating);
+        }
+
+        if (trades != null) {
+            ea.trades = String.valueOf(trades);
+        }
     }
 
     // SEND EA COMMAND
@@ -278,25 +301,32 @@ public class MainActivity extends Activity {
         data.put("time", System.currentTimeMillis());
 
         commandRef.setValue(data)
+                .addOnSuccessListener(unused ->
+                        Toast.makeText(
+                                MainActivity.this,
+                                command + " command sent",
+                                Toast.LENGTH_SHORT
+                        ).show()
+                )
                 .addOnFailureListener(error ->
                         Toast.makeText(
                                 MainActivity.this,
-                                "Command failed: " + error.getMessage(),
+                                "Command failed: " +
+                                        error.getMessage(),
                                 Toast.LENGTH_LONG
                         ).show()
                 );
-
-        Toast.makeText(
-                this,
-                command + " command sent",
-                Toast.LENGTH_SHORT
-        ).show();
     }
 
     // SEND SCALP / SWING MODE
 
     private void sendMode(String mode) {
         if (eaDatabase == null) {
+            Toast.makeText(
+                    this,
+                    "Firebase is not connected",
+                    Toast.LENGTH_SHORT
+            ).show();
             return;
         }
 
@@ -315,7 +345,8 @@ public class MainActivity extends Activity {
                 .addOnFailureListener(error ->
                         Toast.makeText(
                                 MainActivity.this,
-                                "Mode update failed",
+                                "Mode update failed: " +
+                                        error.getMessage(),
                                 Toast.LENGTH_SHORT
                         ).show()
                 );
@@ -338,7 +369,10 @@ public class MainActivity extends Activity {
 
     private TextView heading(String value) {
         TextView view = text(value, 17, WHITE);
-        view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        view.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
         return view;
     }
 
@@ -373,7 +407,10 @@ public class MainActivity extends Activity {
         button.setText(value);
         button.setTextSize(13);
         button.setTextColor(WHITE);
-        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        button.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
         button.setAllCaps(false);
         button.setGravity(Gravity.CENTER);
         return button;
@@ -398,10 +435,16 @@ public class MainActivity extends Activity {
         header.setGravity(Gravity.CENTER_VERTICAL);
 
         TextView money = text("MONEY", 24, WHITE);
-        money.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        money.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
 
         TextView printer = text("PRINTER", 24, GREEN);
-        printer.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        printer.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
 
         header.addView(money);
         header.addView(printer);
@@ -484,7 +527,9 @@ public class MainActivity extends Activity {
                 )
         );
 
-        addEA.setOnClickListener(v -> showAddEADialog());
+        addEA.setOnClickListener(
+                v -> showAddEADialog()
+        );
 
         // STOP ALL
 
@@ -506,12 +551,6 @@ public class MainActivity extends Activity {
 
             sendCommand("STOP");
             refreshEAList();
-
-            Toast.makeText(
-                    MainActivity.this,
-                    "STOP ALL command sent",
-                    Toast.LENGTH_SHORT
-            ).show();
         });
 
         refreshEAList();
@@ -528,7 +567,9 @@ public class MainActivity extends Activity {
     private void createAIChartScanner(LinearLayout root) {
         LinearLayout aiCard = card();
 
-        aiCard.addView(heading("🤖 AI CHART SCANNER"));
+        aiCard.addView(
+                heading("🤖 AI CHART SCANNER")
+        );
 
         aiCard.addView(
                 text(
@@ -539,10 +580,16 @@ public class MainActivity extends Activity {
         );
 
         chartPreview = new ImageView(this);
-        chartPreview.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        chartPreview.setScaleType(
+                ImageView.ScaleType.FIT_CENTER
+        );
 
-        GradientDrawable previewBackground = new GradientDrawable();
-        previewBackground.setColor(Color.rgb(10, 14, 20));
+        GradientDrawable previewBackground =
+                new GradientDrawable();
+
+        previewBackground.setColor(
+                Color.rgb(10, 14, 20)
+        );
         previewBackground.setCornerRadius(18);
 
         chartPreview.setBackground(previewBackground);
@@ -559,8 +606,17 @@ public class MainActivity extends Activity {
         imageParams.setMargins(0, 15, 0, 12);
         aiCard.addView(chartPreview, imageParams);
 
-        chartStatus = text("WAITING FOR CHART", 13, GOLD);
-        chartStatus.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        chartStatus = text(
+                "WAITING FOR CHART",
+                13,
+                GOLD
+        );
+
+        chartStatus.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
+
         aiCard.addView(chartStatus);
 
         Button upload = button("📷 UPLOAD MT5 CHART");
@@ -595,8 +651,13 @@ public class MainActivity extends Activity {
         aiResult.setPadding(0, 18, 0, 5);
         aiCard.addView(aiResult);
 
-        upload.setOnClickListener(v -> openChartPicker());
-        analyze.setOnClickListener(v -> analyzeChart());
+        upload.setOnClickListener(
+                v -> openChartPicker()
+        );
+
+        analyze.setOnClickListener(
+                v -> analyzeChart()
+        );
 
         root.addView(aiCard);
     }
@@ -604,7 +665,9 @@ public class MainActivity extends Activity {
     // PICK A CHART IMAGE
 
     private void openChartPicker() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        Intent intent =
+                new Intent(Intent.ACTION_OPEN_DOCUMENT);
+
         intent.setType("image/*");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
 
@@ -627,7 +690,11 @@ public class MainActivity extends Activity {
             int resultCode,
             Intent data
     ) {
-        super.onActivityResult(requestCode, resultCode, data);
+        super.onActivityResult(
+                requestCode,
+                resultCode,
+                data
+        );
 
         if (requestCode != PICK_CHART ||
                 resultCode != RESULT_OK ||
@@ -650,12 +717,15 @@ public class MainActivity extends Activity {
                     );
 
             if (boundsInput != null) {
-                BitmapFactory.decodeStream(
-                        boundsInput,
-                        null,
-                        options
-                );
-                boundsInput.close();
+                try {
+                    BitmapFactory.decodeStream(
+                            boundsInput,
+                            null,
+                            options
+                    );
+                } finally {
+                    boundsInput.close();
+                }
             }
 
             options.inJustDecodeBounds = false;
@@ -667,7 +737,9 @@ public class MainActivity extends Activity {
                     );
 
             if (imageInput == null) {
-                throw new Exception("Cannot open selected image");
+                throw new Exception(
+                        "Cannot open selected image"
+                );
             }
 
             Bitmap bitmap;
@@ -700,7 +772,11 @@ public class MainActivity extends Activity {
             );
 
         } catch (Exception e) {
-            Log.e("MoneyPrinterAI", "Image preview failed", e);
+            Log.e(
+                    "MoneyPrinterAI",
+                    "Image preview failed",
+                    e
+            );
 
             Toast.makeText(
                     this,
@@ -722,7 +798,9 @@ public class MainActivity extends Activity {
             return;
         }
 
-        chartStatus.setText("● PREPARING AI ANALYSIS...");
+        chartStatus.setText(
+                "● PREPARING AI ANALYSIS..."
+        );
         chartStatus.setTextColor(BLUE);
 
         aiResult.setText(
@@ -730,18 +808,21 @@ public class MainActivity extends Activity {
                 "Preparing your screenshot for analysis..."
         );
 
-        // Decode the image away from the UI thread.
+        final Uri chartUri = selectedChartUri;
+
         Thread worker = new Thread(() -> {
             Bitmap bitmap = null;
 
             try {
                 InputStream input =
                         getContentResolver().openInputStream(
-                                selectedChartUri
+                                chartUri
                         );
 
                 if (input == null) {
-                    throw new Exception("Could not open chart image");
+                    throw new Exception(
+                            "Could not open chart image"
+                    );
                 }
 
                 try {
@@ -763,12 +844,14 @@ public class MainActivity extends Activity {
                     throw new Exception("Invalid chart image");
                 }
 
-                // Keep image dimensions reasonable for mobile memory.
+                // Limit image dimensions to help control memory use.
                 int maxDimension = 1280;
                 int width = bitmap.getWidth();
                 int height = bitmap.getHeight();
 
-                if (width > maxDimension || height > maxDimension) {
+                if (width > maxDimension ||
+                        height > maxDimension) {
+
                     float scale = Math.min(
                             (float) maxDimension / width,
                             (float) maxDimension / height
@@ -776,8 +859,14 @@ public class MainActivity extends Activity {
 
                     Bitmap resized = Bitmap.createScaledBitmap(
                             bitmap,
-                            Math.max(1, Math.round(width * scale)),
-                            Math.max(1, Math.round(height * scale)),
+                            Math.max(
+                                    1,
+                                    Math.round(width * scale)
+                            ),
+                            Math.max(
+                                    1,
+                                    Math.round(height * scale)
+                            ),
                             true
                     );
 
@@ -806,10 +895,14 @@ public class MainActivity extends Activity {
                         )
                         .build();
 
+                // CORRECTED FIREBASE AI INITIALIZATION
+
                 GenerativeModel ai =
                         FirebaseAI.getInstance(
                                 GenerativeBackend.googleAI()
-                        ).generativeModel("gemini-3.8-flash");
+                        ).generativeModel(
+                                "gemini-3.8-flash"
+                        );
 
                 GenerativeModelFutures model =
                         GenerativeModelFutures.from(ai);
@@ -833,11 +926,9 @@ public class MainActivity extends Activity {
                                             "Please try again.";
                                 }
 
-                                final String displayText = resultText;
-
                                 aiResult.setText(
                                         "MONEYPRINTER AI ANALYSIS\n\n" +
-                                        displayText +
+                                        resultText +
                                         "\n\nIMPORTANT: AI can misread charts. " +
                                         "Verify all levels and manage risk."
                                 );
@@ -865,13 +956,16 @@ public class MainActivity extends Activity {
                                 );
                                 chartStatus.setTextColor(RED);
 
+                                String message =
+                                        error.getLocalizedMessage();
+
                                 aiResult.setText(
                                         "AI ANALYSIS FAILED\n\n" +
                                         error.getClass().getSimpleName() +
                                         "\n" +
-                                        (error.getLocalizedMessage() == null
+                                        (message == null
                                                 ? "No extra details available."
-                                                : error.getLocalizedMessage()) +
+                                                : message) +
                                         "\n\nCheck internet access, Firebase AI " +
                                         "Logic setup, App Check debug-token " +
                                         "registration, model availability and quota."
@@ -882,7 +976,9 @@ public class MainActivity extends Activity {
                                 }
                             }
                         },
-                        ContextCompat.getMainExecutor(MainActivity.this)
+                        ContextCompat.getMainExecutor(
+                                MainActivity.this
+                        )
                 );
 
             } catch (Exception error) {
@@ -897,7 +993,9 @@ public class MainActivity extends Activity {
                 }
 
                 runOnUiThread(() -> {
-                    chartStatus.setText("● CHART ANALYSIS ERROR");
+                    chartStatus.setText(
+                            "● CHART ANALYSIS ERROR"
+                    );
                     chartStatus.setTextColor(RED);
 
                     aiResult.setText(
@@ -934,8 +1032,13 @@ public class MainActivity extends Activity {
             createEACard(ea, i);
         }
 
-        totalEA.setText("TOTAL EAs: " + eaList.size());
-        runningEA.setText("RUNNING: " + runningCount);
+        totalEA.setText(
+                "TOTAL EAs: " + eaList.size()
+        );
+
+        runningEA.setText(
+                "RUNNING: " + runningCount
+        );
     }
 
     // EA CARD
@@ -963,7 +1066,10 @@ public class MainActivity extends Activity {
         item.setLayoutParams(itemParams);
 
         TextView name = text(ea.name, 17, WHITE);
-        name.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        name.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
         item.addView(name);
 
         String statusText = ea.running
@@ -999,12 +1105,20 @@ public class MainActivity extends Activity {
 
         modeRow.addView(
                 scalp,
-                new LinearLayout.LayoutParams(0, 55, 1)
+                new LinearLayout.LayoutParams(
+                        0,
+                        55,
+                        1
+                )
         );
 
         modeRow.addView(
                 swing,
-                new LinearLayout.LayoutParams(0, 55, 1)
+                new LinearLayout.LayoutParams(
+                        0,
+                        55,
+                        1
+                )
         );
 
         item.addView(modeRow);
@@ -1017,12 +1131,20 @@ public class MainActivity extends Activity {
 
         controls.addView(
                 start,
-                new LinearLayout.LayoutParams(0, 55, 1)
+                new LinearLayout.LayoutParams(
+                        0,
+                        55,
+                        1
+                )
         );
 
         controls.addView(
                 stop,
-                new LinearLayout.LayoutParams(0, 55, 1)
+                new LinearLayout.LayoutParams(
+                        0,
+                        55,
+                        1
+                )
         );
 
         item.addView(controls);
@@ -1048,22 +1170,27 @@ public class MainActivity extends Activity {
         });
 
         start.setOnClickListener(v -> {
-            ea.running = true;
-
             if (ea.id.equals(EA_ID)) {
                 sendCommand("START");
+            } else {
+                Toast.makeText(
+                        MainActivity.this,
+                        "This EA has no configured MT5 connection yet",
+                        Toast.LENGTH_SHORT
+                ).show();
+                return;
             }
 
+            ea.running = true;
             refreshEAList();
         });
 
         stop.setOnClickListener(v -> {
-            ea.running = false;
-
             if (ea.id.equals(EA_ID)) {
                 sendCommand("STOP");
             }
 
+            ea.running = false;
             refreshEAList();
         });
 
