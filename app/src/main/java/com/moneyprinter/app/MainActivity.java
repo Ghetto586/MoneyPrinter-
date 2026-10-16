@@ -4,7 +4,7 @@ package com.moneyprinter.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.res.ColorStateList;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -20,21 +20,25 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
+import org.json.JSONObject;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class MainActivity extends Activity {
 
-    private static final String EA_ID = "moneymaker_autoscalp_01";
+    private static final String API =
+            "https://moneyprinterv1.onrender.com";
 
-    private static final String DATABASE_URL =
-            "https://moneyprinter-638b5-default-rtdb.firebaseio.com";
+    private static final String EA_ID =
+            "moneymaker_autoscalp_01";
 
     private static final int BG = Color.rgb(7, 10, 15);
     private static final int CARD = Color.rgb(17, 22, 30);
@@ -45,417 +49,238 @@ public class MainActivity extends Activity {
     private static final int RED = Color.rgb(255, 82, 82);
     private static final int GOLD = Color.rgb(255, 193, 7);
 
-    private String selectedMode = "SCALP";
-    private String selectedSymbol = "NAS100";
-    private String selectedRisk = "1.0%";
+    private static final MediaType JSON =
+            MediaType.get("application/json; charset=utf-8");
 
-    private TextView hostStatus;
-    private TextView totalEA;
-    private TextView runningEA;
-    private TextView dashboardEquity;
-    private TextView dashboardToday;
-    private TextView dashboardTrades;
-    private TextView scannerResult;
+    private final OkHttpClient client = new OkHttpClient();
 
-    private LinearLayout eaContainer;
+    private String mode = "SCALP";
+    private String symbol = "NAS100";
+    private String risk = "1.0%";
 
-    private DatabaseReference rootDatabase;
-    private DatabaseReference statusDatabase;
-    private DatabaseReference commandDatabase;
+    private TextView connectionStatus;
+    private TextView commandStatus;
+    private TextView equity;
+    private TextView todayPL;
+    private TextView trades;
+    private TextView modeLabel;
+    private TextView symbolLabel;
+    private ImageView chartImage;
 
-    private ValueEventListener statusListener;
-    private ValueEventListener eaListListener;
-
-    private Uri selectedChartUri;
-    private ImageView chartPreview;
+    private Uri chartUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        try {
-            rootDatabase = FirebaseDatabase
-                    .getInstance(DATABASE_URL)
-                    .getReference();
+        SharedPreferences prefs = getSharedPreferences(
+                "MoneyPrinterSession", MODE_PRIVATE);
 
-            statusDatabase = rootDatabase
-                    .child("eas")
-                    .child(EA_ID)
-                    .child("status");
-
-            commandDatabase = rootDatabase
-                    .child("eas")
-                    .child(EA_ID)
-                    .child("command");
-
-        } catch (Exception e) {
-            Toast.makeText(
-                    this,
-                    "Firebase initialization failed",
-                    Toast.LENGTH_LONG
-            ).show();
+        if (prefs.getString("access_token", "").isEmpty()) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
         }
 
-        createDashboard();
-        connectFirebase();
-        refreshEAList();
+        buildDashboard();
     }
 
-    // =========================================================
-    // DESIGN HELPERS
-    // =========================================================
-
-    private GradientDrawable modernBackground(
-            int color, int radius, int stroke) {
-
-        GradientDrawable drawable = new GradientDrawable();
-        drawable.setColor(color);
-        drawable.setCornerRadius(radius);
-
-        if (stroke != 0) {
-            drawable.setStroke(2, stroke);
-        }
-
-        return drawable;
+    private GradientDrawable shape(int color, int radius, int stroke) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(radius);
+        if (stroke != 0) d.setStroke(2, stroke);
+        return d;
     }
 
-    private TextView modernText(
-            String value, int size, int color, boolean bold) {
-
-        TextView view = new TextView(this);
-        view.setText(value);
-        view.setTextSize(size);
-        view.setTextColor(color);
-        view.setPadding(0, 5, 0, 5);
-        view.setIncludeFontPadding(true);
-
-        if (bold) {
-            view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        }
-
-        return view;
+    private TextView text(String value, int size, int color,
+                          boolean bold) {
+        TextView t = new TextView(this);
+        t.setText(value);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        t.setPadding(0, 5, 0, 5);
+        if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        return t;
     }
 
-    private LinearLayout modernCard() {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(15, 15, 15, 15);
-
-        card.setBackground(modernBackground(
-                CARD, 20, Color.rgb(39, 52, 69)));
-
-        LinearLayout.LayoutParams params =
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                );
-
-        params.setMargins(0, 7, 0, 7);
-        card.setLayoutParams(params);
-
-        return card;
+    private LinearLayout row() {
+        LinearLayout l = new LinearLayout(this);
+        l.setOrientation(LinearLayout.HORIZONTAL);
+        l.setGravity(Gravity.CENTER_VERTICAL);
+        return l;
     }
 
-    // Updated button helper: explicitly sets text, colour,
-    // gravity, font and background to improve visibility.
-    private Button modernButton(
-            String label, int background, int foreground) {
+    private LinearLayout card() {
+        LinearLayout l = new LinearLayout(this);
+        l.setOrientation(LinearLayout.VERTICAL);
+        l.setPadding(15, 15, 15, 15);
+        l.setBackground(shape(CARD, 20, Color.rgb(39, 52, 69)));
 
-        Button button = new Button(this);
-
-        button.setText(label);
-        button.setTextColor(foreground);
-        button.setTextSize(13);
-        button.setAllCaps(false);
-        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        button.setGravity(Gravity.CENTER);
-        button.setIncludeFontPadding(true);
-
-        button.setVisibility(View.VISIBLE);
-        button.setAlpha(1.0f);
-        button.setEnabled(true);
-        button.setMinHeight(48);
-        button.setMinimumHeight(48);
-        button.setMinimumWidth(0);
-        button.setPadding(8, 4, 8, 4);
-
-        // Remove default button tint that can interfere with
-        // custom button backgrounds on some Android themes.
-        button.setBackgroundTintList(null);
-        button.setStateListAnimator(null);
-
-        button.setBackground(
-                modernBackground(background, 15, 0));
-
-        // Apply text properties again after styling.
-        button.setTextColor(foreground);
-        button.setText(label);
-
-        return button;
+        LinearLayout.LayoutParams p =
+                new LinearLayout.LayoutParams(-1, -2);
+        p.setMargins(0, 7, 0, 7);
+        l.setLayoutParams(p);
+        return l;
     }
 
-    private LinearLayout modernRow() {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        return row;
+    private Button button(String label, int bg, int fg) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setAllCaps(false);
+        b.setTextSize(13);
+        b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        b.setTextColor(fg);
+        b.setGravity(Gravity.CENTER);
+        b.setMinHeight(48);
+        b.setBackgroundTintList(null);
+        b.setBackground(shape(bg, 14, 0));
+        return b;
     }
 
-    // =========================================================
-    // MAIN DASHBOARD
-    // =========================================================
-
-    private void createDashboard() {
-
+    private void buildDashboard() {
         ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
         scroll.setBackgroundColor(BG);
+        scroll.setFillViewport(true);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(16, 18, 16, 25);
-
+        root.setPadding(16, 20, 16, 28);
         scroll.addView(root);
 
-        // HEADER
-        LinearLayout header = modernRow();
-
-        header.addView(modernText("♛", 31, GOLD, true));
+        LinearLayout header = row();
+        header.addView(text("♛", 32, GOLD, true));
 
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setPadding(10, 0, 0, 0);
-
-        LinearLayout brandLine = modernRow();
-
-        brandLine.addView(modernText(
-                "MoneyPrinter ", 20, WHITE, true));
-
-        brandLine.addView(modernText(
-                "EA", 20, GOLD, true));
-
-        brand.addView(brandLine);
-
-        brand.addView(modernText(
-                "MT5 CONTROL CENTER", 10, MUTED, true));
-
-        header.addView(
-                brand,
-                new LinearLayout.LayoutParams(0, -2, 1)
-        );
-
-        TextView online = modernText(
-                "● CONNECTING", 10, GOLD, true);
-
-        online.setPadding(10, 8, 10, 8);
-
-        online.setBackground(modernBackground(
-                Color.rgb(35, 30, 10), 30, GOLD));
-
-        header.addView(online);
+        brand.addView(text("MoneyPrinter EA", 21, WHITE, true));
+        brand.addView(text("MT5 CONTROL CENTER", 10, MUTED, true));
+        header.addView(brand, new LinearLayout.LayoutParams(0, -2, 1));
         root.addView(header);
 
-        // HERO
-        LinearLayout hero = new LinearLayout(this);
-        hero.setOrientation(LinearLayout.VERTICAL);
-        hero.setPadding(5, 27, 5, 20);
+        root.addView(text("AUTOMATED TRADING", 11, GOLD, true));
+        root.addView(text("MT5 CONTROL", 31, WHITE, true));
+        root.addView(text("CENTER", 31, GOLD, true));
+        root.addView(text(
+                "Manage your EA commands from anywhere.",
+                14, MUTED, false));
 
-        hero.addView(modernText(
-                "AUTOMATED TRADING  ━━━━━",
-                11, GOLD, true));
+        LinearLayout connection = card();
+        connection.addView(text("META TRADER 5", 17, WHITE, true));
 
-        hero.addView(modernText(
-                "MT5 CONTROL", 31, WHITE, true));
+        connectionStatus = text(
+                "● WAITING FOR MT5 BRIDGE", 13, GOLD, true);
+        connection.addView(connectionStatus);
 
-        hero.addView(modernText(
-                "CENTER", 31, GOLD, true));
+        connection.addView(text(
+                "Render API connected does not mean MT5 is connected.",
+                11, MUTED, false));
+        root.addView(connection);
 
-        hero.addView(modernText(
-                "Manage your trading robot from anywhere.",
-                15, MUTED, false));
+        LinearLayout actions = row();
+        Button start = button("▶ START EA", GREEN, Color.BLACK);
+        Button stop = button("■ STOP EA",
+                Color.rgb(45, 15, 22), RED);
 
-        root.addView(hero);
+        LinearLayout.LayoutParams half =
+                new LinearLayout.LayoutParams(0, 58, 1);
+        half.setMargins(0, 5, 5, 5);
+        actions.addView(start, half);
 
-        // MT5 CONNECTION CARD
-        LinearLayout account = modernCard();
-        account.setOrientation(LinearLayout.HORIZONTAL);
-        account.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView mtIcon = modernText("⑤", 30, GREEN, true);
-        mtIcon.setGravity(Gravity.CENTER);
-        mtIcon.setBackground(modernBackground(INNER, 15, 0));
-
-        LinearLayout.LayoutParams iconParams =
-                new LinearLayout.LayoutParams(60, 60);
-
-        iconParams.setMargins(0, 0, 13, 0);
-        account.addView(mtIcon, iconParams);
-
-        LinearLayout accountInfo = new LinearLayout(this);
-        accountInfo.setOrientation(LinearLayout.VERTICAL);
-
-        accountInfo.addView(modernText(
-                "MetaTrader 5", 17, WHITE, true));
-
-        hostStatus = modernText(
-                "● WAITING FOR MT5", 12, GOLD, true);
-
-        accountInfo.addView(hostStatus);
-
-        accountInfo.addView(modernText(
-                "Status supplied by your MT5 bridge",
-                10, MUTED, false));
-
-        account.addView(accountInfo);
-        root.addView(account);
-
-        // START AND STOP EA
-        LinearLayout actions = modernRow();
-
-        Button start = modernButton(
-                "▶ START EA", GREEN, Color.BLACK);
-
-        Button stop = modernButton(
-                "■ STOP EA",
-                Color.rgb(25, 12, 19),
-                RED);
-
-        stop.setBackground(modernBackground(
-                Color.rgb(25, 12, 19), 15, RED));
-
-        stop.setText("■ STOP EA");
-        stop.setTextColor(RED);
-
-        LinearLayout.LayoutParams startParams =
-                new LinearLayout.LayoutParams(0, 60, 1);
-
-        startParams.setMargins(0, 6, 5, 8);
-
-        LinearLayout.LayoutParams stopParams =
-                new LinearLayout.LayoutParams(0, 60, 1);
-
-        stopParams.setMargins(5, 6, 0, 8);
-
-        actions.addView(start, startParams);
-        actions.addView(stop, stopParams);
-
+        LinearLayout.LayoutParams half2 =
+                new LinearLayout.LayoutParams(0, 58, 1);
+        half2.setMargins(5, 5, 0, 5);
+        actions.addView(stop, half2);
         root.addView(actions);
 
         start.setOnClickListener(v -> sendCommand("START"));
         stop.setOnClickListener(v -> sendCommand("STOP"));
 
-        // EQUITY, DAILY P/L AND OPEN TRADES
-        LinearLayout stats = modernRow();
-
-        dashboardEquity = addModernStat(
-                stats, "◈", "EQUITY", "—", GOLD, false);
-
-        dashboardToday = addModernStat(
-                stats, "↗", "TODAY P/L", "—", GREEN, true);
-
-        dashboardTrades = addModernStat(
-                stats, "☰", "OPEN TRADES", "—", MUTED, true);
-
+        LinearLayout stats = row();
+        equity = addStat(stats, "EQUITY", "—", GOLD);
+        todayPL = addStat(stats, "TODAY P/L", "—", GREEN);
+        trades = addStat(stats, "OPEN TRADES", "—", MUTED);
         root.addView(stats);
 
-        // ROBOT SETTINGS
-        LinearLayout settings = modernCard();
+        LinearLayout settings = card();
+        settings.addView(text("⚙ ROBOT SETTINGS", 16, GOLD, true));
 
-        settings.addView(modernText(
-                "⚙ ROBOT SETTINGS", 16, GOLD, true));
+        modeLabel = text("Mode: SCALP", 13, WHITE, true);
+        settings.addView(modeLabel);
 
-        LinearLayout modes = modernRow();
-        modes.setPadding(4, 4, 4, 4);
-        modes.setBackground(modernBackground(INNER, 15, 0));
+        LinearLayout modes = row();
+        Button scalp = button("ϟ SCALP", GREEN, Color.BLACK);
+        Button swing = button("▥ SWING", INNER, WHITE);
 
-        Button scalp = modernButton(
-                "ϟ SCALP", GREEN, Color.BLACK);
-
-        Button swing = modernButton(
-                "▥ SWING", INNER, MUTED);
-
-        modes.addView(scalp,
-                new LinearLayout.LayoutParams(0, 49, 1));
-
-        modes.addView(swing,
-                new LinearLayout.LayoutParams(0, 49, 1));
-
+        modes.addView(scalp, new LinearLayout.LayoutParams(0, 48, 1));
+        modes.addView(swing, new LinearLayout.LayoutParams(0, 48, 1));
         settings.addView(modes);
 
         scalp.setOnClickListener(v -> {
-            selectedMode = "SCALP";
-            updateModeButtons(scalp, swing);
-            sendMode(selectedMode);
+            mode = "SCALP";
+            modeLabel.setText("Mode: " + mode);
+            scalp.setBackground(shape(GREEN, 14, 0));
+            scalp.setTextColor(Color.BLACK);
+            swing.setBackground(shape(INNER, 14, 0));
+            swing.setTextColor(WHITE);
+            sendCommand("MODE");
         });
 
         swing.setOnClickListener(v -> {
-            selectedMode = "SWING";
-            updateModeButtons(scalp, swing);
-            sendMode(selectedMode);
+            mode = "SWING";
+            modeLabel.setText("Mode: " + mode);
+            swing.setBackground(shape(GREEN, 14, 0));
+            swing.setTextColor(Color.BLACK);
+            scalp.setBackground(shape(INNER, 14, 0));
+            scalp.setTextColor(WHITE);
+            sendCommand("MODE");
         });
 
-        settings.addView(modernText(
-                "⌖ SYMBOLS", 14, WHITE, true));
+        settings.addView(text("Trading symbol", 13, WHITE, true));
+        symbolLabel = text("Selected: " + symbol, 12, GOLD, true);
+        settings.addView(symbolLabel);
 
-        LinearLayout symbols = modernRow();
-
-        String[] symbolNames = {
-                "NAS100", "US30", "XAUUSD", "USDJPY"
+        String[] symbols = {
+                "NAS100", "US30", "XAUUSD",
+                "USDJPY", "GBPUSD", "EURUSD"
         };
 
-        for (String symbol : symbolNames) {
+        LinearLayout symbolRows = new LinearLayout(this);
+        symbolRows.setOrientation(LinearLayout.VERTICAL);
 
-            Button symbolButton = modernButton(
-                    symbol,
-                    symbol.equals(selectedSymbol)
-                            ? Color.rgb(8, 47, 36) : INNER,
-                    symbol.equals(selectedSymbol)
-                            ? GREEN : MUTED
-            );
+        for (int i = 0; i < symbols.length; i += 3) {
+            LinearLayout symbolRow = row();
 
-            symbolButton.setTextSize(10);
+            for (int j = i; j < Math.min(i + 3, symbols.length); j++) {
+                String s = symbols[j];
+                Button sb = button(s, INNER, WHITE);
 
-            LinearLayout.LayoutParams symbolParams =
-                    new LinearLayout.LayoutParams(0, 44, 1);
+                LinearLayout.LayoutParams sp =
+                        new LinearLayout.LayoutParams(0, 44, 1);
+                sp.setMargins(2, 3, 2, 3);
+                symbolRow.addView(sb, sp);
 
-            symbolParams.setMargins(2, 3, 2, 3);
-            symbols.addView(symbolButton, symbolParams);
-
-            symbolButton.setOnClickListener(v -> {
-                selectedSymbol = symbol;
-
-                updateSymbolButtons(symbols);
-                sendSetting("SYMBOL", symbol);
-
-                Toast.makeText(
-                        this,
-                        "Symbol request sent: " + symbol,
-                        Toast.LENGTH_SHORT
-                ).show();
-            });
+                sb.setOnClickListener(v -> {
+                    symbol = s;
+                    symbolLabel.setText("Selected: " + symbol);
+                    sendCommand("SYMBOL");
+                });
+            }
+            symbolRows.addView(symbolRow);
         }
+        settings.addView(symbolRows);
 
-        settings.addView(symbols);
+        LinearLayout riskRow = row();
+        riskRow.addView(text("Risk per trade", 13, WHITE, true),
+                new LinearLayout.LayoutParams(0, -2, 1));
 
-        // RISK SELECTOR
-        LinearLayout riskRow = modernRow();
-
-        riskRow.addView(
-                modernText("Risk per trade", 14, WHITE, true),
-                new LinearLayout.LayoutParams(0, -2, 1)
-        );
-
-        Button risk = modernButton(
-                selectedRisk + "  ▾", INNER, WHITE);
-
-        riskRow.addView(
-                risk,
-                new LinearLayout.LayoutParams(115, 47)
-        );
-
+        Button riskButton = button(risk, INNER, WHITE);
+        riskRow.addView(riskButton,
+                new LinearLayout.LayoutParams(110, 46));
         settings.addView(riskRow);
 
-        risk.setOnClickListener(v -> {
+        riskButton.setOnClickListener(v -> {
             String[] risks = {
                     "0.25%", "0.5%", "1.0%", "1.5%", "2.0%"
             };
@@ -463,621 +288,214 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Risk per trade")
                     .setItems(risks, (dialog, which) -> {
-                        selectedRisk = risks[which];
-                        risk.setText(selectedRisk + "  ▾");
-                        sendSetting("RISK", selectedRisk);
+                        risk = risks[which];
+                        riskButton.setText(risk);
+                        sendCommand("RISK");
                     })
                     .show();
         });
 
         root.addView(settings);
 
-        // EA MANAGER
-        LinearLayout manager = modernCard();
+        LinearLayout manager = card();
+        manager.addView(text("EA MANAGER", 16, WHITE, true));
+        manager.addView(text(
+                "1 configured EA · " + EA_ID,
+                11, MUTED, false));
 
-        manager.addView(modernText(
-                "EA MANAGER", 16, WHITE, true));
+        Button managerStart = button(
+                "START MONEYMAKER AUTOSCALP", GREEN, Color.BLACK);
+        Button managerStop = button(
+                "STOP MONEYMAKER AUTOSCALP",
+                Color.rgb(45, 15, 22), RED);
 
-        totalEA = modernText(
-                "TOTAL EAs: 0", 12, MUTED, false);
+        manager.addView(managerStart);
+        manager.addView(managerStop);
 
-        runningEA = modernText(
-                "RUNNING: 0", 12, GREEN, false);
+        managerStart.setOnClickListener(v -> sendCommand("START"));
+        managerStop.setOnClickListener(v -> sendCommand("STOP"));
 
-        manager.addView(totalEA);
-        manager.addView(runningEA);
-
-        eaContainer = new LinearLayout(this);
-        eaContainer.setOrientation(LinearLayout.VERTICAL);
-        manager.addView(eaContainer);
-
-        Button addEA = modernButton(
-                "+ ADD EA", INNER, GOLD);
-
-        manager.addView(addEA,
-                new LinearLayout.LayoutParams(-1, 50));
-
-        addEA.setOnClickListener(v -> showAddEADialog());
-
-        Button stopAll = modernButton(
-                "STOP ALL EAs",
-                Color.rgb(35, 15, 22),
-                RED);
-
-        manager.addView(stopAll,
-                new LinearLayout.LayoutParams(-1, 50));
-
+        Button stopAll = button(
+                "STOP ALL (CONFIGURED EA)",
+                Color.rgb(45, 15, 22), RED);
+        manager.addView(stopAll);
         stopAll.setOnClickListener(v -> sendCommand("STOP"));
-
         root.addView(manager);
 
-        // CHART SCANNER IMAGE PICKER
-        createAIChartScanner(root);
+        LinearLayout scanner = card();
+        scanner.addView(text("CHART IMAGE", 16, GOLD, true));
+        scanner.addView(text(
+                "Choose a chart screenshot. AI analysis is not connected yet.",
+                12, MUTED, false));
+
+        Button upload = button("UPLOAD CHART IMAGE", INNER, WHITE);
+        scanner.addView(upload);
+
+        chartImage = new ImageView(this);
+        chartImage.setAdjustViewBounds(true);
+        chartImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+
+        LinearLayout.LayoutParams imageParams =
+                new LinearLayout.LayoutParams(-1, 250);
+        imageParams.topMargin = 10;
+        scanner.addView(chartImage, imageParams);
+
+        upload.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.setType("image/*");
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(intent, 1001);
+        });
+        root.addView(scanner);
+
+        commandStatus = text(
+                "Commands have not been sent yet.", 12, MUTED, false);
+        root.addView(commandStatus);
+
+        Button logout = button("SIGN OUT", INNER, WHITE);
+        root.addView(logout);
+        logout.setOnClickListener(v -> signOut());
 
         setContentView(scroll);
     }
 
-    private void updateModeButtons(
-            Button scalp, Button swing) {
+    private TextView addStat(LinearLayout parent, String label,
+                             String value, int color) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(9, 12, 5, 12);
+        box.setBackground(shape(CARD, 14, Color.rgb(39, 52, 69)));
 
-        boolean isScalp = "SCALP".equals(selectedMode);
+        box.addView(text(label, 9, MUTED, true));
+        TextView val = text(value, 15, color, true);
+        box.addView(val);
 
-        scalp.setBackground(modernBackground(
-                isScalp ? GREEN : INNER, 12, 0));
-
-        scalp.setText("ϟ SCALP");
-        scalp.setTextColor(isScalp ? Color.BLACK : MUTED);
-
-        swing.setBackground(modernBackground(
-                isScalp ? INNER : GREEN, 12, 0));
-
-        swing.setText("▥ SWING");
-        swing.setTextColor(isScalp ? MUTED : Color.BLACK);
-    }
-
-    private void updateSymbolButtons(LinearLayout symbols) {
-        for (int i = 0; i < symbols.getChildCount(); i++) {
-            View child = symbols.getChildAt(i);
-
-            if (child instanceof Button) {
-                Button button = (Button) child;
-
-                boolean chosen = button.getText()
-                        .toString().equals(selectedSymbol);
-
-                button.setBackground(modernBackground(
-                        chosen ? Color.rgb(8, 47, 36) : INNER,
-                        15, 0));
-
-                button.setTextColor(chosen ? GREEN : MUTED);
-            }
-        }
-    }
-
-    private TextView addModernStat(
-            LinearLayout row,
-            String icon,
-            String title,
-            String initial,
-            int accent,
-            boolean margin) {
-
-        LinearLayout stat = new LinearLayout(this);
-        stat.setOrientation(LinearLayout.VERTICAL);
-        stat.setPadding(10, 12, 7, 12);
-
-        stat.setBackground(modernBackground(
-                CARD, 15, Color.rgb(39, 52, 69)));
-
-        stat.addView(modernText(icon, 22, accent, true));
-        stat.addView(modernText(title, 9, MUTED, false));
-
-        TextView value = modernText(
-                initial, 15, accent, true);
-
-        stat.addView(value);
-
-        LinearLayout.LayoutParams params =
+        LinearLayout.LayoutParams p =
                 new LinearLayout.LayoutParams(0, -2, 1);
-
-        params.setMargins(margin ? 5 : 0, 0, 0, 0);
-        row.addView(stat, params);
-
-        return value;
+        p.setMargins(2, 3, 2, 3);
+        parent.addView(box, p);
+        return val;
     }
-
-    // =========================================================
-    // FIREBASE STATUS
-    // =========================================================
-
-    private void connectFirebase() {
-        if (statusDatabase == null) {
-            hostStatus.setText("● FIREBASE UNAVAILABLE");
-            hostStatus.setTextColor(RED);
-            return;
-        }
-
-        statusListener = new ValueEventListener() {
-
-            @Override
-            public void onDataChange(DataSnapshot snapshot) {
-
-                if (!snapshot.exists()) {
-                    hostStatus.setText("● WAITING FOR MT5");
-                    hostStatus.setTextColor(GOLD);
-
-                    dashboardEquity.setText("—");
-                    dashboardToday.setText("—");
-                    dashboardTrades.setText("—");
-
-                    return;
-                }
-
-                String status = readString(
-                        snapshot, "status", "UNKNOWN");
-
-                hostStatus.setText(
-                        "● " + status.toUpperCase());
-
-                boolean connected =
-                        status.toLowerCase().contains("online")
-                        || status.toLowerCase().contains("connected")
-                        || status.toLowerCase().contains("running");
-
-                hostStatus.setTextColor(
-                        connected ? GREEN : GOLD);
-
-                String equity = readString(
-                        snapshot, "equity", "");
-
-                if (equity.isEmpty()) {
-                    equity = readString(
-                            snapshot, "balance", "");
-                }
-
-                dashboardEquity.setText(
-                        equity.isEmpty() ? "—" : equity);
-
-                String today = readString(
-                        snapshot, "today_pl", "");
-
-                dashboardToday.setText(
-                        today.isEmpty() ? "—" : today);
-
-                String trades = readString(
-                        snapshot, "open_trades", "—");
-
-                dashboardTrades.setText(trades);
-
-                if (snapshot.hasChild("mode")) {
-                    selectedMode = readString(
-                            snapshot, "mode", selectedMode);
-                }
-
-                if (snapshot.hasChild("symbol")) {
-                    selectedSymbol = readString(
-                            snapshot, "symbol", selectedSymbol);
-                }
-            }
-
-            @Override
-            public void onCancelled(DatabaseError error) {
-                hostStatus.setText("● FIREBASE ERROR");
-                hostStatus.setTextColor(RED);
-
-                Toast.makeText(
-                        MainActivity.this,
-                        "Status read failed: " + error.getMessage(),
-                        Toast.LENGTH_LONG
-                ).show();
-            }
-        };
-
-        statusDatabase.addValueEventListener(statusListener);
-    }
-
-    private String readString(
-            DataSnapshot snapshot,
-            String key,
-            String fallback) {
-
-        Object value = snapshot.child(key).getValue();
-
-        return value == null
-                ? fallback
-                : String.valueOf(value);
-    }
-
-    // =========================================================
-    // COMMANDS
-    // =========================================================
 
     private void sendCommand(String command) {
-        if (commandDatabase == null) {
-            Toast.makeText(
-                    this,
-                    "Firebase is not available",
-                    Toast.LENGTH_SHORT
-            ).show();
+        SharedPreferences prefs = getSharedPreferences(
+                "MoneyPrinterSession", MODE_PRIVATE);
+
+        String token = prefs.getString("access_token", "");
+
+        if (token.isEmpty()) {
+            signOut();
             return;
         }
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("command", command);
-        data.put("time", System.currentTimeMillis());
+        try {
+            JSONObject body = new JSONObject();
+            body.put("ea_id", EA_ID);
+            body.put("command", command);
+            body.put("mode", mode);
 
-        commandDatabase.setValue(data)
-                .addOnSuccessListener(unused ->
-                        Toast.makeText(
-                                this,
-                                command + " request sent",
-                                Toast.LENGTH_SHORT
-                        ).show())
-                .addOnFailureListener(error ->
-                        Toast.makeText(
-                                this,
-                                "Command failed: " + error.getMessage(),
-                                Toast.LENGTH_LONG
-                        ).show());
-    }
+            if ("SYMBOL".equals(command)) {
+                body.put("symbol", symbol);
+            }
 
-    private void sendMode(String mode) {
-        if (commandDatabase == null) return;
+            if ("RISK".equals(command)) {
+                body.put("risk", risk);
+            }
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("command", "MODE");
-        data.put("mode", mode);
-        data.put("time", System.currentTimeMillis());
+            Request request = new Request.Builder()
+                    .url(API + "/api/ea/commands")
+                    .addHeader("Authorization", "Bearer " + token)
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(body.toString(), JSON))
+                    .build();
 
-        commandDatabase.setValue(data)
-                .addOnFailureListener(error ->
-                        Toast.makeText(
-                                this,
-                                "Mode request failed",
-                                Toast.LENGTH_SHORT
-                        ).show());
-    }
+            commandStatus.setText("Sending " + command + "...");
+            commandStatus.setTextColor(GOLD);
 
-    private void sendSetting(
-            String setting, String value) {
-
-        if (commandDatabase == null) {
-            Toast.makeText(
-                    this,
-                    "Firebase is not available",
-                    Toast.LENGTH_SHORT
-            ).show();
-            return;
-        }
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("command", setting);
-        data.put("value", value);
-        data.put("time", System.currentTimeMillis());
-
-        commandDatabase.setValue(data)
-                .addOnSuccessListener(unused ->
-                        Toast.makeText(
-                                this,
-                                setting + " request sent",
-                                Toast.LENGTH_SHORT
-                        ).show())
-                .addOnFailureListener(error ->
-                        Toast.makeText(
-                                this,
-                                "Setting failed: " + error.getMessage(),
-                                Toast.LENGTH_LONG
-                        ).show());
-    }
-
-    // =========================================================
-    // EA MANAGER
-    // =========================================================
-
-    private void refreshEAList() {
-        if (rootDatabase == null || eaContainer == null) {
-            return;
-        }
-
-        DatabaseReference easReference =
-                rootDatabase.child("eas");
-
-        eaListListener = new ValueEventListener() {
-
-            @Override
-            public void onDataChange(DataSnapshot snapshot) {
-
-                eaContainer.removeAllViews();
-
-                int total = 0;
-                int running = 0;
-
-                for (DataSnapshot ea : snapshot.getChildren()) {
-
-                    DataSnapshot state = ea.child("status");
-
-                    if (!state.exists()) continue;
-
-                    total++;
-
-                    String id = ea.getKey();
-
-                    String name = readString(
-                            state, "ea_name", id);
-
-                    String status = readString(
-                            state, "status", "UNKNOWN");
-
-                    String lower = status.toLowerCase();
-
-                    if (lower.contains("running")
-                            || lower.contains("online")) {
-                        running++;
-                    }
-
-                    addEACard(id, name, status);
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        commandStatus.setText(
+                                "Network error. Command not confirmed.");
+                        commandStatus.setTextColor(RED);
+                    });
                 }
 
-                totalEA.setText("TOTAL EAs: " + total);
-                runningEA.setText("RUNNING: " + running);
-            }
+                @Override
+                public void onResponse(Call call, Response response)
+                        throws IOException {
+                    String responseText = response.body() != null
+                            ? response.body().string() : "";
 
-            @Override
-            public void onCancelled(DatabaseError error) {
-                Toast.makeText(
-                        MainActivity.this,
-                        "Could not load EA list",
-                        Toast.LENGTH_SHORT
-                ).show();
-            }
-        };
+                    runOnUiThread(() -> {
+                        try {
+                            JSONObject result =
+                                    new JSONObject(responseText);
 
-        easReference.addValueEventListener(eaListListener);
-    }
+                            if (response.code() == 401) {
+                                commandStatus.setText(
+                                        "Session expired. Sign in again.");
+                                commandStatus.setTextColor(RED);
+                                return;
+                            }
 
-    private void addEACard(
-            String id, String name, String status) {
+                            if (!response.isSuccessful()
+                                    || !result.optBoolean("success", false)) {
+                                commandStatus.setText(
+                                        result.optString("message",
+                                                "Command was rejected."));
+                                commandStatus.setTextColor(RED);
+                                return;
+                            }
 
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(10, 10, 10, 10);
+                            commandStatus.setText(
+                                    command + " queued. Waiting for MT5 bridge.");
+                            commandStatus.setTextColor(GREEN);
 
-        card.setBackground(modernBackground(INNER, 12, 0));
+                            Toast.makeText(MainActivity.this,
+                                    command + " command queued",
+                                    Toast.LENGTH_SHORT).show();
 
-        LinearLayout.LayoutParams cardParams =
-                new LinearLayout.LayoutParams(-1, -2);
+                        } catch (Exception e) {
+                            commandStatus.setText(
+                                    "Unexpected server response.");
+                            commandStatus.setTextColor(RED);
+                        }
+                    });
+                }
+            });
 
-        cardParams.setMargins(0, 5, 0, 5);
-        card.setLayoutParams(cardParams);
-
-        card.addView(modernText(
-                name, 14, WHITE, true));
-
-        card.addView(modernText(
-                "ID: " + id, 10, MUTED, false));
-
-        card.addView(modernText(
-                "Status: " + status, 11, GREEN, false));
-
-        LinearLayout buttons = modernRow();
-
-        Button start = modernButton(
-                "START", GREEN, Color.BLACK);
-
-        Button stop = modernButton(
-                "STOP", Color.rgb(35, 15, 22), RED);
-
-        buttons.addView(start,
-                new LinearLayout.LayoutParams(0, 45, 1));
-
-        buttons.addView(stop,
-                new LinearLayout.LayoutParams(0, 45, 1));
-
-        card.addView(buttons);
-
-        start.setOnClickListener(
-                v -> sendEACommand(id, "START"));
-
-        stop.setOnClickListener(
-                v -> sendEACommand(id, "STOP"));
-
-        eaContainer.addView(card);
-    }
-
-    private void sendEACommand(
-            String id, String command) {
-
-        if (rootDatabase == null) return;
-
-        DatabaseReference ref = rootDatabase
-                .child("eas")
-                .child(id)
-                .child("command");
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("command", command);
-        data.put("time", System.currentTimeMillis());
-
-        ref.setValue(data)
-                .addOnSuccessListener(unused ->
-                        Toast.makeText(
-                                this,
-                                command + " request sent to " + id,
-                                Toast.LENGTH_SHORT
-                        ).show())
-                .addOnFailureListener(error ->
-                        Toast.makeText(
-                                this,
-                                "Command failed",
-                                Toast.LENGTH_SHORT
-                        ).show());
-    }
-
-    private void showAddEADialog() {
-        EditText nameInput = new EditText(this);
-        nameInput.setHint("Robot name");
-
-        new AlertDialog.Builder(this)
-                .setTitle("Add EA")
-                .setMessage(
-                        "Register a robot entry. This does not install an EA in MT5.")
-                .setView(nameInput)
-                .setNegativeButton("CANCEL", null)
-                .setPositiveButton("ADD", (dialog, which) -> {
-
-                    String name = nameInput.getText()
-                            .toString().trim();
-
-                    if (name.isEmpty()) {
-                        Toast.makeText(
-                                this,
-                                "Enter a robot name",
-                                Toast.LENGTH_SHORT
-                        ).show();
-                        return;
-                    }
-
-                    if (rootDatabase == null) return;
-
-                    String id = rootDatabase
-                            .child("eas")
-                            .push()
-                            .getKey();
-
-                    if (id == null) return;
-
-                    Map<String, Object> state = new HashMap<>();
-
-                    state.put("ea_name", name);
-                    state.put("status", "REGISTERED");
-                    state.put("mode", selectedMode);
-                    state.put("symbol", selectedSymbol);
-                    state.put("equity", "");
-                    state.put("today_pl", "");
-                    state.put("open_trades", "0");
-
-                    rootDatabase
-                            .child("eas")
-                            .child(id)
-                            .child("status")
-                            .setValue(state)
-                            .addOnFailureListener(error ->
-                                    Toast.makeText(
-                                            this,
-                                            "Could not add EA",
-                                            Toast.LENGTH_SHORT
-                                    ).show());
-                })
-                .show();
-    }
-
-    // =========================================================
-    // CHART IMAGE SELECTOR
-    // Image selection is included. AI analysis requires a
-    // separately configured AI service.
-    // =========================================================
-
-    private void createAIChartScanner(LinearLayout root) {
-
-        LinearLayout scanner = modernCard();
-
-        scanner.addView(modernText(
-                "AI CHART SCANNER", 16, GOLD, true));
-
-        scanner.addView(modernText(
-                "Select a chart screenshot for analysis.",
-                12, MUTED, false));
-
-        Button upload = modernButton(
-                "UPLOAD CHART IMAGE", INNER, WHITE);
-
-        scanner.addView(upload,
-                new LinearLayout.LayoutParams(-1, 50));
-
-        chartPreview = new ImageView(this);
-        chartPreview.setAdjustViewBounds(true);
-        chartPreview.setScaleType(
-                ImageView.ScaleType.FIT_CENTER);
-
-        LinearLayout.LayoutParams imageParams =
-                new LinearLayout.LayoutParams(-1, 250);
-
-        imageParams.setMargins(0, 10, 0, 10);
-
-        scanner.addView(chartPreview, imageParams);
-
-        scannerResult = modernText(
-                "Waiting for chart image", 12, MUTED, false);
-
-        scanner.addView(scannerResult);
-
-        upload.setOnClickListener(v -> {
-            Intent intent = new Intent(
-                    Intent.ACTION_OPEN_DOCUMENT);
-
-            intent.setType("image/*");
-            intent.addCategory(
-                    Intent.CATEGORY_OPENABLE);
-
-            startActivityForResult(intent, 1001);
-        });
-
-        root.addView(scanner);
-    }
-
-    @Override
-    protected void onActivityResult(
-            int requestCode,
-            int resultCode,
-            Intent data) {
-
-        super.onActivityResult(
-                requestCode, resultCode, data);
-
-        if (requestCode == 1001
-                && resultCode == RESULT_OK
-                && data != null
-                && data.getData() != null) {
-
-            selectedChartUri = data.getData();
-
-            try {
-                getContentResolver()
-                        .takePersistableUriPermission(
-                                selectedChartUri,
-                                Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        );
-            } catch (Exception ignored) {
-                // Some document providers do not support
-                // persistent URI permissions.
-            }
-
-            chartPreview.setImageURI(selectedChartUri);
-
-            scannerResult.setText(
-                    "Image selected. AI analysis is not connected yet.");
-
-            scannerResult.setTextColor(GOLD);
+        } catch (Exception e) {
+            commandStatus.setText("Could not prepare command.");
+            commandStatus.setTextColor(RED);
         }
     }
 
-    // =========================================================
-    // CLEANUP
-    // =========================================================
+    private void signOut() {
+        getSharedPreferences(
+                "MoneyPrinterSession", MODE_PRIVATE)
+                .edit().clear().apply();
+
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+                Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
+    protected void onActivityResult(int requestCode, int resultCode,
+                                    Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 
-        if (statusDatabase != null
-                && statusListener != null) {
-            statusDatabase.removeEventListener(statusListener);
-        }
-
-        if (rootDatabase != null
-                && eaListListener != null) {
-            rootDatabase.child("eas")
-                    .removeEventListener(eaListListener);
+        if (requestCode == 1001 && resultCode == RESULT_OK
+                && data != null && data.getData() != null) {
+            chartUri = data.getData();
+            chartImage.setImageURI(chartUri);
+            Toast.makeText(this,
+                    "Chart image selected. AI analysis is not connected.",
+                    Toast.LENGTH_LONG).show();
         }
     }
 }
