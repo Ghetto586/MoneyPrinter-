@@ -1,5 +1,7 @@
+
 package com.moneyprinter.app;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -8,15 +10,12 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
-import android.content.Context;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-
-import androidx.appcompat.app.AppCompatActivity;
+import android.widget.Toast;
 
 import org.json.JSONObject;
 
@@ -30,7 +29,7 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-public class LoginActivity extends AppCompatActivity {
+public class LoginActivity extends Activity {
 
     private static final String SUPABASE_URL =
             "https://cmygqxznpvwvfziipoqe.supabase.co";
@@ -46,170 +45,158 @@ public class LoginActivity extends AppCompatActivity {
     private EditText emailInput;
     private EditText passwordInput;
     private Button loginButton;
-    private ProgressBar progressBar;
-    private TextView message;
-
-    private final int BG = Color.rgb(7, 10, 15);
-    private final int CARD = Color.rgb(17, 22, 30);
-    private final int GREEN = Color.rgb(0, 230, 118);
-    private final int MUTED = Color.rgb(145, 154, 168);
+    private ProgressBar progress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        getWindow().setStatusBarColor(BG);
-        getWindow().setNavigationBarColor(BG);
-        getWindow().getDecorView().setSystemUiVisibility(0);
-
         SharedPreferences prefs =
                 getSharedPreferences("MoneyPrinterSession", MODE_PRIVATE);
 
-        String savedToken = prefs.getString("access_token", "");
+        String token = prefs.getString("access_token", "");
 
-        if (savedToken != null && !savedToken.isEmpty()) {
+        if (!token.isEmpty()) {
             openDashboard();
             return;
         }
 
-        buildLoginScreen();
+        createLoginScreen();
     }
 
-    private GradientDrawable rounded(int color, int radius) {
+    private GradientDrawable background(int color, int radius, int stroke) {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(color);
         drawable.setCornerRadius(radius);
+
+        if (stroke != 0) {
+            drawable.setStroke(2, stroke);
+        }
+
         return drawable;
     }
 
     private TextView text(String value, int size, int color, boolean bold) {
         TextView view = new TextView(this);
         view.setText(value);
-        view.setTextColor(color);
         view.setTextSize(size);
+        view.setTextColor(color);
         if (bold) {
             view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         }
         return view;
     }
 
-    private void buildLoginScreen() {
+    private void createLoginScreen() {
+        int bg = Color.rgb(7, 10, 15);
+        int card = Color.rgb(17, 22, 30);
+        int gold = Color.rgb(255, 193, 7);
+        int muted = Color.rgb(145, 154, 168);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setPadding(28, 35, 28, 28);
-        root.setBackgroundColor(BG);
+        root.setGravity(Gravity.CENTER);
+        root.setPadding(24, 30, 24, 30);
+        root.setBackgroundColor(bg);
 
-        TextView logo = text("MP", 42, GREEN, true);
+        TextView logo = text("♛", 48, gold, true);
         logo.setGravity(Gravity.CENTER);
-        logo.setBackground(rounded(CARD, 28));
+        root.addView(logo);
 
-        LinearLayout.LayoutParams logoParams =
-                new LinearLayout.LayoutParams(100, 100);
-        logoParams.bottomMargin = 20;
-        root.addView(logo, logoParams);
-
-        TextView title = text("MoneyPrinter", 30, Color.WHITE, true);
+        TextView title = text("MoneyPrinter EA", 29, Color.WHITE, true);
         title.setGravity(Gravity.CENTER);
         root.addView(title);
 
         TextView subtitle = text(
-                "EA CONTROL CENTER", 13, MUTED, true);
+                "MT4 / MT5 CONTROL CENTER", 12, muted, true);
         subtitle.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams subParams =
-                new LinearLayout.LayoutParams(-1, -2);
-        subParams.topMargin = 8;
-        subParams.bottomMargin = 32;
-        root.addView(subtitle, subParams);
+        subtitle.setPadding(0, 8, 0, 25);
+        root.addView(subtitle);
 
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(22, 24, 22, 24);
-        card.setBackground(rounded(CARD, 24));
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(20, 22, 20, 22);
+        form.setBackground(background(card, 22, Color.rgb(39, 52, 69)));
 
-        TextView heading = text("Sign in", 23, Color.WHITE, true);
-        card.addView(heading);
+        TextView heading = text("Sign in", 22, Color.WHITE, true);
+        form.addView(heading);
 
-        TextView hint = text(
-                "Sign in with your MoneyPrinter account",
-                14, MUTED, false);
-        LinearLayout.LayoutParams hintParams =
-                new LinearLayout.LayoutParams(-1, -2);
-        hintParams.topMargin = 8;
-        hintParams.bottomMargin = 24;
-        card.addView(hint, hintParams);
+        TextView description = text(
+                "Use your existing MoneyPrinter website account.",
+                13, muted, false);
+        description.setPadding(0, 5, 0, 18);
+        form.addView(description);
 
         emailInput = new EditText(this);
         emailInput.setSingleLine(true);
-        emailInput.setTextColor(Color.WHITE);
-        emailInput.setHintTextColor(MUTED);
+        emailInput.setTextSize(15);
         emailInput.setHint("Email address");
-        emailInput.setTextSize(16);
+        emailInput.setHintTextColor(muted);
+        emailInput.setTextColor(Color.WHITE);
         emailInput.setInputType(
-                android.text.InputType.TYPE_CLASS_TEXT
-                | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
-        emailInput.setPadding(16, 14, 16, 14);
-        emailInput.setBackground(rounded(
-                Color.rgb(29, 37, 48), 14));
-
-        card.addView(emailInput, new LinearLayout.LayoutParams(-1, 56));
+                android.text.InputType.TYPE_CLASS_TEXT |
+                android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        emailInput.setPadding(14, 12, 14, 12);
+        emailInput.setBackground(background(
+                Color.rgb(29, 37, 48), 12, 0));
+        form.addView(emailInput, new LinearLayout.LayoutParams(
+                -1, 54));
 
         passwordInput = new EditText(this);
         passwordInput.setSingleLine(true);
-        passwordInput.setTextColor(Color.WHITE);
-        passwordInput.setHintTextColor(MUTED);
+        passwordInput.setTextSize(15);
         passwordInput.setHint("Password");
-        passwordInput.setTextSize(16);
+        passwordInput.setHintTextColor(muted);
+        passwordInput.setTextColor(Color.WHITE);
         passwordInput.setInputType(
-                android.text.InputType.TYPE_CLASS_TEXT
-                | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        passwordInput.setPadding(16, 14, 16, 14);
-        passwordInput.setBackground(rounded(
-                Color.rgb(29, 37, 48), 14));
+                android.text.InputType.TYPE_CLASS_TEXT |
+                android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setPadding(14, 12, 14, 12);
+        passwordInput.setBackground(background(
+                Color.rgb(29, 37, 48), 12, 0));
 
         LinearLayout.LayoutParams passParams =
-                new LinearLayout.LayoutParams(-1, 56);
-        passParams.topMargin = 14;
-        card.addView(passwordInput, passParams);
+                new LinearLayout.LayoutParams(-1, 54);
+        passParams.topMargin = 12;
+        form.addView(passwordInput, passParams);
 
         loginButton = new Button(this);
         loginButton.setText("SIGN IN");
-        loginButton.setTextColor(Color.BLACK);
+        loginButton.setAllCaps(false);
         loginButton.setTextSize(15);
         loginButton.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        loginButton.setAllCaps(false);
-        loginButton.setBackground(rounded(GREEN, 16));
+        loginButton.setTextColor(Color.BLACK);
+        loginButton.setBackground(background(gold, 14, 0));
 
         LinearLayout.LayoutParams buttonParams =
-                new LinearLayout.LayoutParams(-1, 56);
-        buttonParams.topMargin = 22;
-        card.addView(loginButton, buttonParams);
+                new LinearLayout.LayoutParams(-1, 54);
+        buttonParams.topMargin = 18;
+        form.addView(loginButton, buttonParams);
 
-        progressBar = new ProgressBar(this);
-        progressBar.setVisibility(View.GONE);
+        progress = new ProgressBar(this);
+        progress.setVisibility(View.GONE);
+
         LinearLayout.LayoutParams progressParams =
                 new LinearLayout.LayoutParams(-2, -2);
         progressParams.gravity = Gravity.CENTER;
-        progressParams.topMargin = 16;
-        card.addView(progressBar, progressParams);
+        progressParams.topMargin = 12;
+        form.addView(progress, progressParams);
 
-        message = text("", 13, Color.RED, false);
-        message.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams messageParams =
-                new LinearLayout.LayoutParams(-1, -2);
-        messageParams.topMargin = 14;
-        card.addView(message, messageParams);
+        TextView note = text(
+                "Secure sign-in powered by Supabase",
+                11, muted, false);
+        note.setGravity(Gravity.CENTER);
+        note.setPadding(0, 18, 0, 0);
+        form.addView(note);
 
-        root.addView(card, new LinearLayout.LayoutParams(-1, -2));
+        root.addView(form, new LinearLayout.LayoutParams(-1, -2));
 
         TextView footer = text(
-                "Secure access • MoneyPrinter",
-                12, MUTED, false);
+                "Trading commands require a connected MT5 bridge.",
+                11, muted, false);
         footer.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams footerParams =
-                new LinearLayout.LayoutParams(-1, -2);
-        footerParams.topMargin = 28;
-        root.addView(footer, footerParams);
+        footer.setPadding(0, 20, 0, 0);
+        root.addView(footer);
 
         setContentView(root);
 
@@ -221,7 +208,9 @@ public class LoginActivity extends AppCompatActivity {
         String password = passwordInput.getText().toString();
 
         if (email.isEmpty() || password.isEmpty()) {
-            message.setText("Enter your email and password.");
+            Toast.makeText(this,
+                    "Enter your email and password.",
+                    Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -231,102 +220,98 @@ public class LoginActivity extends AppCompatActivity {
             body.put("password", password);
 
             Request request = new Request.Builder()
-                    .url(SUPABASE_URL
-                            + "/auth/v1/token?grant_type=password")
+                    .url(SUPABASE_URL +
+                            "/auth/v1/token?grant_type=password")
                     .addHeader("apikey", SUPABASE_KEY)
                     .addHeader("Content-Type", "application/json")
                     .post(RequestBody.create(body.toString(), JSON))
                     .build();
 
             loginButton.setEnabled(false);
-            progressBar.setVisibility(View.VISIBLE);
-            message.setTextColor(MUTED);
-            message.setText("Signing in…");
-
-            ((InputMethodManager) getSystemService(
-                    Context.INPUT_METHOD_SERVICE))
-                    .hideSoftInputFromWindow(
-                            passwordInput.getWindowToken(), 0);
+            loginButton.setText("SIGNING IN...");
+            progress.setVisibility(View.VISIBLE);
 
             client.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
                         loginButton.setEnabled(true);
-                        progressBar.setVisibility(View.GONE);
-                        message.setTextColor(Color.RED);
-                        message.setText(
-                                "Network error. Check your internet and try again.");
+                        loginButton.setText("SIGN IN");
+                        progress.setVisibility(View.GONE);
+                        Toast.makeText(LoginActivity.this,
+                                "Network error. Check your connection.",
+                                Toast.LENGTH_LONG).show();
                     });
                 }
 
                 @Override
                 public void onResponse(Call call, Response response)
                         throws IOException {
+
                     String responseText = response.body() != null
                             ? response.body().string() : "";
 
-                    if (!response.isSuccessful()) {
-                        String errorMessage = "Sign-in failed.";
+                    runOnUiThread(() -> {
+                        loginButton.setEnabled(true);
+                        loginButton.setText("SIGN IN");
+                        progress.setVisibility(View.GONE);
+
                         try {
-                            JSONObject error =
+                            JSONObject result =
                                     new JSONObject(responseText);
-                            errorMessage = error.optString(
-                                    "msg",
-                                    error.optString(
-                                            "message", errorMessage));
-                        } catch (Exception ignored) {
-                        }
 
-                        final String displayError = errorMessage;
-                        runOnUiThread(() -> {
-                            loginButton.setEnabled(true);
-                            progressBar.setVisibility(View.GONE);
-                            message.setTextColor(Color.RED);
-                            message.setText(displayError);
-                        });
-                        return;
-                    }
+                            if (!response.isSuccessful()) {
+                                String message = result.optString(
+                                        "msg",
+                                        result.optString(
+                                                "message",
+                                                "Sign-in failed. Check your details."));
+                                Toast.makeText(LoginActivity.this,
+                                        message, Toast.LENGTH_LONG).show();
+                                return;
+                            }
 
-                    try {
-                        JSONObject result = new JSONObject(responseText);
-                        String token = result.getString("access_token");
-                        String refreshToken =
-                                result.optString("refresh_token", "");
-                        String userId = result.getJSONObject("user")
-                                .getString("id");
+                            String accessToken =
+                                    result.optString("access_token", "");
+                            String refreshToken =
+                                    result.optString("refresh_token", "");
+                            String userId = result
+                                    .optJSONObject("user") != null
+                                    ? result.getJSONObject("user")
+                                            .optString("id", "")
+                                    : "";
 
-                        getSharedPreferences(
-                                "MoneyPrinterSession", MODE_PRIVATE)
-                                .edit()
-                                .putString("access_token", token)
-                                .putString("refresh_token", refreshToken)
-                                .putString("user_id", userId)
-                                .putString("email", email)
-                                .apply();
+                            if (accessToken.isEmpty() || userId.isEmpty()) {
+                                Toast.makeText(LoginActivity.this,
+                                        "Login response was incomplete.",
+                                        Toast.LENGTH_LONG).show();
+                                return;
+                            }
 
-                        runOnUiThread(() -> {
-                            progressBar.setVisibility(View.GONE);
+                            getSharedPreferences(
+                                    "MoneyPrinterSession", MODE_PRIVATE)
+                                    .edit()
+                                    .putString("access_token", accessToken)
+                                    .putString("refresh_token", refreshToken)
+                                    .putString("user_id", userId)
+                                    .putString("email", email)
+                                    .apply();
+
                             openDashboard();
-                        });
 
-                    } catch (Exception e) {
-                        runOnUiThread(() -> {
-                            loginButton.setEnabled(true);
-                            progressBar.setVisibility(View.GONE);
-                            message.setTextColor(Color.RED);
-                            message.setText(
-                                    "Could not read the sign-in response.");
-                        });
-                    }
+                        } catch (Exception e) {
+                            Toast.makeText(LoginActivity.this,
+                                    "Could not read the login response.",
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
                 }
             });
 
         } catch (Exception e) {
-            loginButton.setEnabled(true);
-            progressBar.setVisibility(View.GONE);
-            message.setTextColor(Color.RED);
-            message.setText("Could not start sign-in.");
+            Toast.makeText(this,
+                    "Could not prepare sign-in request.",
+                    Toast.LENGTH_LONG).show();
         }
     }
 
