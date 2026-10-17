@@ -1,8 +1,8 @@
 
 package com.moneyprinter.app;
 
+import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -10,7 +10,6 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
-import android.content.Context;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -61,18 +60,8 @@ public class LoginActivity extends AppCompatActivity {
 
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
-        getWindow().getDecorView().setSystemUiVisibility(0);
 
-        SharedPreferences prefs =
-                getSharedPreferences("MoneyPrinterSession", MODE_PRIVATE);
-
-        String savedToken = prefs.getString("access_token", "");
-
-        if (savedToken != null && !savedToken.isEmpty()) {
-            openDashboard();
-            return;
-        }
-
+        // Always display login first while diagnosing the startup crash.
         buildLoginScreen();
     }
 
@@ -88,9 +77,11 @@ public class LoginActivity extends AppCompatActivity {
         view.setText(value);
         view.setTextColor(color);
         view.setTextSize(size);
+
         if (bold) {
             view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         }
+
         return view;
     }
 
@@ -114,26 +105,26 @@ public class LoginActivity extends AppCompatActivity {
         title.setGravity(Gravity.CENTER);
         root.addView(title);
 
-        TextView subtitle = text(
-                "EA CONTROL CENTER", 13, MUTED, true);
+        TextView subtitle = text("EA CONTROL CENTER", 13, MUTED, true);
         subtitle.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams subParams =
+
+        LinearLayout.LayoutParams subtitleParams =
                 new LinearLayout.LayoutParams(-1, -2);
-        subParams.topMargin = 8;
-        subParams.bottomMargin = 32;
-        root.addView(subtitle, subParams);
+        subtitleParams.topMargin = 8;
+        subtitleParams.bottomMargin = 32;
+        root.addView(subtitle, subtitleParams);
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(22, 24, 22, 24);
         card.setBackground(rounded(CARD, 24));
 
-        TextView heading = text("Sign in", 23, Color.WHITE, true);
-        card.addView(heading);
+        card.addView(text("Sign in", 23, Color.WHITE, true));
 
         TextView hint = text(
                 "Sign in with your MoneyPrinter account",
                 14, MUTED, false);
+
         LinearLayout.LayoutParams hintParams =
                 new LinearLayout.LayoutParams(-1, -2);
         hintParams.topMargin = 8;
@@ -153,7 +144,8 @@ public class LoginActivity extends AppCompatActivity {
         emailInput.setBackground(rounded(
                 Color.rgb(29, 37, 48), 14));
 
-        card.addView(emailInput, new LinearLayout.LayoutParams(-1, 56));
+        card.addView(emailInput,
+                new LinearLayout.LayoutParams(-1, 56));
 
         passwordInput = new EditText(this);
         passwordInput.setSingleLine(true);
@@ -168,10 +160,10 @@ public class LoginActivity extends AppCompatActivity {
         passwordInput.setBackground(rounded(
                 Color.rgb(29, 37, 48), 14));
 
-        LinearLayout.LayoutParams passParams =
+        LinearLayout.LayoutParams passwordParams =
                 new LinearLayout.LayoutParams(-1, 56);
-        passParams.topMargin = 14;
-        card.addView(passwordInput, passParams);
+        passwordParams.topMargin = 14;
+        card.addView(passwordInput, passwordParams);
 
         loginButton = new Button(this);
         loginButton.setText("SIGN IN");
@@ -188,6 +180,7 @@ public class LoginActivity extends AppCompatActivity {
 
         progressBar = new ProgressBar(this);
         progressBar.setVisibility(View.GONE);
+
         LinearLayout.LayoutParams progressParams =
                 new LinearLayout.LayoutParams(-2, -2);
         progressParams.gravity = Gravity.CENTER;
@@ -196,6 +189,7 @@ public class LoginActivity extends AppCompatActivity {
 
         message = text("", 13, Color.RED, false);
         message.setGravity(Gravity.CENTER);
+
         LinearLayout.LayoutParams messageParams =
                 new LinearLayout.LayoutParams(-1, -2);
         messageParams.topMargin = 14;
@@ -204,16 +198,15 @@ public class LoginActivity extends AppCompatActivity {
         root.addView(card, new LinearLayout.LayoutParams(-1, -2));
 
         TextView footer = text(
-                "Secure access • MoneyPrinter",
-                12, MUTED, false);
+                "Secure access • MoneyPrinter", 12, MUTED, false);
         footer.setGravity(Gravity.CENTER);
+
         LinearLayout.LayoutParams footerParams =
                 new LinearLayout.LayoutParams(-1, -2);
         footerParams.topMargin = 28;
         root.addView(footer, footerParams);
 
         setContentView(root);
-
         loginButton.setOnClickListener(v -> signIn());
     }
 
@@ -244,21 +237,20 @@ public class LoginActivity extends AppCompatActivity {
             message.setTextColor(MUTED);
             message.setText("Signing in…");
 
-            ((InputMethodManager) getSystemService(
-                    Context.INPUT_METHOD_SERVICE))
-                    .hideSoftInputFromWindow(
-                            passwordInput.getWindowToken(), 0);
+            InputMethodManager imm =
+                    (InputMethodManager) getSystemService(
+                            Context.INPUT_METHOD_SERVICE);
+
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(
+                        passwordInput.getWindowToken(), 0);
+            }
 
             client.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-                    runOnUiThread(() -> {
-                        loginButton.setEnabled(true);
-                        progressBar.setVisibility(View.GONE);
-                        message.setTextColor(Color.RED);
-                        message.setText(
-                                "Network error. Check your internet and try again.");
-                    });
+                    runOnUiThread(() -> showError(
+                            "Network error. Check your internet."));
                 }
 
                 @Override
@@ -269,6 +261,7 @@ public class LoginActivity extends AppCompatActivity {
 
                     if (!response.isSuccessful()) {
                         String errorMessage = "Sign-in failed.";
+
                         try {
                             JSONObject error =
                                     new JSONObject(responseText);
@@ -280,12 +273,7 @@ public class LoginActivity extends AppCompatActivity {
                         }
 
                         final String displayError = errorMessage;
-                        runOnUiThread(() -> {
-                            loginButton.setEnabled(true);
-                            progressBar.setVisibility(View.GONE);
-                            message.setTextColor(Color.RED);
-                            message.setText(displayError);
-                        });
+                        runOnUiThread(() -> showError(displayError));
                         return;
                     }
 
@@ -308,32 +296,27 @@ public class LoginActivity extends AppCompatActivity {
 
                         runOnUiThread(() -> {
                             progressBar.setVisibility(View.GONE);
-                            openDashboard();
+                            startActivity(new Intent(
+                                    LoginActivity.this, MainActivity.class));
+                            finish();
                         });
 
                     } catch (Exception e) {
-                        runOnUiThread(() -> {
-                            loginButton.setEnabled(true);
-                            progressBar.setVisibility(View.GONE);
-                            message.setTextColor(Color.RED);
-                            message.setText(
-                                    "Could not read the sign-in response.");
-                        });
+                        runOnUiThread(() -> showError(
+                                "Could not read sign-in response."));
                     }
                 }
             });
 
         } catch (Exception e) {
-            loginButton.setEnabled(true);
-            progressBar.setVisibility(View.GONE);
-            message.setTextColor(Color.RED);
-            message.setText("Could not start sign-in.");
+            showError("Could not start sign-in.");
         }
     }
 
-    private void openDashboard() {
-        Intent intent = new Intent(this, MainActivity.class);
-        startActivity(intent);
-        finish();
+    private void showError(String error) {
+        loginButton.setEnabled(true);
+        progressBar.setVisibility(View.GONE);
+        message.setTextColor(Color.RED);
+        message.setText(error);
     }
 }
